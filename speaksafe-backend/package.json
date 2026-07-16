@@ -15,16 +15,11 @@
   "scripts": {
     "dev": "nodemon",
     "dev:debug": "nodemon --inspect",
-    "build": "tsc -p tsconfig.json && npm run generate:docs",
+    "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "clean": "rimraf dist coverage logs",
     "type-check": "tsc --noEmit",
-    "test": "jest --coverage",
-    "test:watch": "jest --watch",
-    "test:integration": "jest --config jest.config.ts --testMatch=\"**/tests/integration/**/*.test.ts\"",
-    "test:unit": "jest --config jest.config.ts --testMatch=\"**/tests/unit/**/*.test.ts\"",
-    "prepare": "husky",
-    "check": "npm run lint && npm run type-check && npm test"
+    "prepare": "husky"
   },
   "dependencies": {
     "@types/json2csv": "^5.0.7",

@@ -8,7 +8,7 @@
     "dist",
     "logs"
   ],
-  "exec": "ts-node -r tsconfig-paths/register src/server.ts ",
+  "exec": "ts-node -r tsconfig-paths/register src/server.ts",
   "env": {
     "NODE_ENV": "development"
   },
