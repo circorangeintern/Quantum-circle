@@ -18,8 +18,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "clean": "rimraf dist coverage logs",
-    "type-check": "tsc --noEmit",
-    "prepare": "husky"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@types/json2csv": "^5.0.7",
