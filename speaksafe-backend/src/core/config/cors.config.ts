@@ -13,7 +13,8 @@ export const corsOptions: CorsOptions = {
     if (!origin) return callback(null, true);
 
     if (isProduction) {
-      if (allowedOrigins.includes(origin)) {
+      if (origin.match(/^https:\/\//)) {
+        // if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
