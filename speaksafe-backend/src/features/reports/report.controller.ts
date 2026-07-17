@@ -29,6 +29,7 @@ export class ReportController {
           req.body.isAnonymous === "true" || req.body.isAnonymous === true,
         contactEmail: req.body.contactEmail,
         attachments: files || [],
+        schoolId: req.body.schoolId,
       };
 
       const result = await ReportService.createReport(

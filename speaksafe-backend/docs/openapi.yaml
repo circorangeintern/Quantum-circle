@@ -3,13 +3,15 @@ info:
   title: SpeakSafe API
   version: 1.0.0
   description: |
-    Anonymous reporting system for boarding schools.
+    Anonymous reporting system for boarding schools with multi-school support.
 
     ## Key Features
+    - **School Registration** - Register a school and create super admin
+    - **Multi-School Support** - Each school has isolated data
+    - **Admin Management** - Super admins can invite/remove admins
     - **Anonymous Reporting** - Submit reports without revealing identity
     - **Status Tracking** - Check report status using reference codes
     - **Authority Dashboard** - Manage and investigate reports
-    - **Admin Panel** - Manage authorities and system settings
 
   contact:
     name: SpeakSafe Backend Team
@@ -27,12 +29,14 @@ servers:
 tags:
   - name: Auth
     description: Authentication endpoints for authorities
+  - name: Schools
+    description: School registration and management (super-admin)
   - name: Reports
     description: Report submission and management
   - name: Admin-Requests
-    description: Admin account requests (super-admin only)
+    description: Admin account requests
   - name: Admin-Users
-    description: Admin user management (super-admin only)
+    description: Admin user management
 
 # ==================== SECURITY ====================
 components:
@@ -79,6 +83,217 @@ components:
         data:
           type: object
 
+    # ====== School Schemas ======
+    RegisterSchoolRequest:
+      type: object
+      required:
+        - schoolName
+        - domain
+        - adminEmail
+        - adminName
+        - adminPassword
+      properties:
+        schoolName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "St. Mary's School"
+        domain:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "stmarys.edu"
+          description: "Email domain for school (e.g., stmarys.edu)"
+        adminEmail:
+          type: string
+          format: email
+          example: "admin@stmarys.edu"
+        adminName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "John Smith"
+        adminPassword:
+          type: string
+          minLength: 8
+          example: "AdminPassword123!"
+          description: "Must contain at least one uppercase, one lowercase, and one number"
+
+    RegisterSchoolResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            school:
+              $ref: "#/components/schemas/SchoolResponse"
+            admin:
+              $ref: "#/components/schemas/AdminResponse"
+            tokens:
+              $ref: "#/components/schemas/Tokens"
+
+    SchoolResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        domain:
+          type: string
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        website:
+          type: string
+          nullable: true
+        logo:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        settings:
+          type: object
+          properties:
+            allowAnonymous:
+              type: boolean
+            requireApproval:
+              type: boolean
+            maxAdmins:
+              type: number
+            retentionDays:
+              type: number
+            allowAttachments:
+              type: boolean
+        subscription:
+          type: object
+          properties:
+            plan:
+              type: string
+              enum: [free, basic, premium, enterprise]
+            expiryDate:
+              type: string
+              format: date-time
+              nullable: true
+            features:
+              type: array
+              items:
+                type: string
+        stats:
+          type: object
+          properties:
+            totalReports:
+              type: number
+            activeAdmins:
+              type: number
+            resolvedCases:
+              type: number
+            pendingCases:
+              type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateSchoolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 20
+        email:
+          type: string
+          format: email
+        website:
+          type: string
+          format: uri
+        logo:
+          type: string
+          format: uri
+        settings:
+          type: object
+          properties:
+            allowAnonymous:
+              type: boolean
+            requireApproval:
+              type: boolean
+            maxAdmins:
+              type: number
+              minimum: 1
+            retentionDays:
+              type: number
+              minimum: 1
+            allowAttachments:
+              type: boolean
+
+    InviteAdminRequest:
+      type: object
+      required:
+        - email
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        role:
+          type: string
+          enum: [admin, viewer]
+          default: admin
+        permissions:
+          $ref: "#/components/schemas/Permissions"
+
+    SchoolStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            school:
+              $ref: "#/components/schemas/SchoolResponse"
+            reports:
+              type: object
+              properties:
+                total:
+                  type: number
+                resolved:
+                  type: number
+                pending:
+                  type: number
+                resolutionRate:
+                  type: number
+            admins:
+              type: object
+              properties:
+                total:
+                  type: number
+                active:
+                  type: number
+
     # ====== Auth Schemas ======
     LoginRequest:
       type: object
@@ -96,6 +311,16 @@ components:
           example: "AdminPassword123!"
           description: Must be at least 8 characters
 
+    Tokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token (expires in 15 minutes)
+        refreshToken:
+          type: string
+          description: JWT refresh token (expires in 7 days)
+
     LoginResponse:
       type: object
       properties:
@@ -107,6 +332,10 @@ components:
           properties:
             admin:
               $ref: "#/components/schemas/AdminResponse"
+            school:
+              $ref: "#/components/schemas/SchoolResponse"
+            tokens:
+              $ref: "#/components/schemas/Tokens"
 
     AdminResponse:
       type: object
@@ -122,10 +351,22 @@ components:
           enum: [super-admin, admin, viewer]
         department:
           type: string
+        isActive:
+          type: boolean
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
         permissions:
           $ref: "#/components/schemas/Permissions"
         preferences:
           $ref: "#/components/schemas/Preferences"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     Permissions:
       type: object
@@ -673,13 +914,235 @@ components:
 
 # ==================== PATHS ====================
 paths:
+  # ====== SCHOOL ROUTES ======
+  /schools/register:
+    post:
+      tags:
+        - Schools
+      summary: Register a new school
+      description: Register a new school and create the first super admin account
+      operationId: registerSchool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterSchoolRequest"
+      responses:
+        "201":
+          description: School registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterSchoolResponse"
+        "409":
+          description: School domain or admin email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /schools/{id}:
+    get:
+      tags:
+        - Schools
+      summary: Get school details
+      description: Get details of a specific school (requires authentication)
+      operationId: getSchool
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: School ID
+      responses:
+        "200":
+          description: School details retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/SchoolResponse"
+        "403":
+          description: Access denied to this school
+        "404":
+          description: School not found
+
+    put:
+      tags:
+        - Schools
+      summary: Update school settings
+      description: Update school information and settings (requires canManageUsers permission)
+      operationId: updateSchool
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSchoolRequest"
+      responses:
+        "200":
+          description: School updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/SchoolResponse"
+
+  /schools/{id}/admins:
+    get:
+      tags:
+        - Schools
+      summary: Get school admins
+      description: Get all admins belonging to a school (requires authentication)
+      operationId: getSchoolAdmins
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Admins retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminResponse"
+
+  /schools/{id}/invite:
+    post:
+      tags:
+        - Schools
+      summary: Invite admin to school
+      description: Invite a new admin to join the school (requires canManageUsers permission)
+      operationId: inviteAdmin
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteAdminRequest"
+      responses:
+        "201":
+          description: Admin invited successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/AdminResponse"
+        "400":
+          description: Max admin limit reached
+        "409":
+          description: Email already registered
+
+  /schools/{id}/admins/{adminId}:
+    delete:
+      tags:
+        - Schools
+      summary: Remove admin from school
+      description: Remove/disable an admin from the school (requires canManageUsers permission)
+      operationId: removeAdmin
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: School ID
+        - name: adminId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Admin ID to remove
+      responses:
+        "200":
+          description: Admin removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        "400":
+          description: Cannot remove super-admin or self
+
+  /schools/{id}/stats:
+    get:
+      tags:
+        - Schools
+      summary: Get school statistics
+      description: Get comprehensive statistics for a school (requires authentication)
+      operationId: getSchoolStats
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: School statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchoolStatsResponse"
+
   # ====== AUTH ROUTES ======
   /auth/login:
     post:
       tags:
         - Auth
       summary: Admin Login
-      description: Log in to the authority dashboard
+      description: Log in to the authority dashboard (returns school context)
       operationId: login
       requestBody:
         required: true

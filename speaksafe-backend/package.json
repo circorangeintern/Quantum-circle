@@ -19,7 +19,8 @@
     "start": "node dist/server.js",
     "clean": "rimraf dist coverage logs",
     "type-check": "tsc --noEmit",
-    "render-build": "npm install --include=dev && npm run build"
+    "render-build": "npm install --include=dev && npm run build",
+    "db:migrate:schools": "ts-node scripts/migrate-schools.ts"
   },
   "dependencies": {
     "@types/json2csv": "^5.0.7",

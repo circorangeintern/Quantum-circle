@@ -7,6 +7,7 @@ export interface AuthRequest extends Request {
   adminId?: string;
   adminEmail?: string;
   adminRole?: string;
+  adminSchoolId?: string;
   adminPermissions?: {
     canAssign: boolean;
     canResolve: boolean;
@@ -40,7 +41,13 @@ export const authenticate = async (
 
     // Get admin role
     const admin = await AuthService.getCurrentAdmin(payload.adminId);
+    if (!admin) {
+      ApiResponse.unauthorized(res, "Admin not found");
+      return;
+    }
+
     req.adminRole = admin.role;
+    req.adminSchoolId = admin.school?.id;
 
     // Validate admin is active
     const isValid = await AuthService.validateAdmin(payload.adminId);

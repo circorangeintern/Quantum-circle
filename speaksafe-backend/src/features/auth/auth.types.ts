@@ -13,6 +13,12 @@ export interface LoginResponse {
     permissions: UserPermissions;
     preferences: UserPreferences;
   };
+  school: {
+    id: string;
+    name: string;
+    domain: string;
+    settings?: any;
+  };
   tokens: {
     accessToken: string;
     refreshToken: string;
@@ -30,6 +36,11 @@ export interface AuthAdmin {
   role: string;
   department: string;
   permissions: UserPermissions;
+  school?: {
+    id: string;
+    name: string;
+    domain: string;
+  };
 }
 
 export interface UserPermissions {

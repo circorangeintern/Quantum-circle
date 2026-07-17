@@ -17,6 +17,7 @@ import {
 import { PasswordReset } from "../../core/models/password-reset.model";
 import EmailService from "../../core/services/email.service";
 import { randomBytes } from "crypto";
+import { School } from "../../core/models/school.model";
 
 export class AuthService {
   private repository: AuthRepository;
@@ -64,6 +65,12 @@ export class AuthService {
         userAgent,
       );
       throw new ApiError(401, "Invalid email or password");
+    }
+
+    // Get school info
+    const school = await School.findById(admin.schoolId);
+    if (!school) {
+      throw new ApiError(404, "School not found for this admin");
     }
 
     // Generate tokens
@@ -122,6 +129,12 @@ export class AuthService {
           emailDigest: false,
           dashboardView: "list",
         },
+      },
+      school: {
+        id: school.id,
+        name: school.name,
+        domain: school.domain,
+        settings: school.settings,
       },
       tokens,
     };
@@ -191,6 +204,8 @@ export class AuthService {
       throw new ApiError(404, "Admin not found");
     }
 
+    const school = await School.findById(admin.schoolId);
+
     const permissions =
       admin.role === "super-admin"
         ? {
@@ -215,6 +230,13 @@ export class AuthService {
       role: admin.role,
       department: admin.department || "Student Affairs",
       permissions,
+      school: school
+        ? {
+            id: school.id,
+            name: school.name,
+            domain: school.domain,
+          }
+        : undefined,
     };
   }
 

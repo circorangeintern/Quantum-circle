@@ -14,6 +14,7 @@ export interface CreateReportRequest {
   isAnonymous: boolean;
   contactEmail?: string;
   attachments: Express.Multer.File[];
+  schoolId?: string;
 }
 
 export interface CreateReportResponse {
@@ -124,6 +125,7 @@ export interface ReportDetailResponse {
 }
 
 export interface GetReportsQuery {
+  schoolId?: string;
   status?: ReportStatus;
   category?: ReportCategory;
   urgency?: ReportUrgency;

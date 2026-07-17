@@ -10,6 +10,7 @@ export interface IReport extends Document {
 
   // Core fields
   category: ReportCategory;
+  schoolId: Schema.Types.ObjectId | string;
   title: string;
   description: string;
   status: ReportStatus;
@@ -104,6 +105,11 @@ const ReportSchema = new Schema<IReport>(
         "other",
       ],
       required: true,
+    },
+    schoolId: {
+      type: Schema.Types.ObjectId,
+      ref: "School",
+      // required: true, // Will make required once we have school management in place
     },
     title: {
       type: String,

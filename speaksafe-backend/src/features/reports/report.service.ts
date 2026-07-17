@@ -50,6 +50,7 @@ export class ReportService {
       isAnonymous,
       contactEmail,
       attachments,
+      schoolId,
     } = data;
 
     // Validate contact email if provided
@@ -85,6 +86,7 @@ export class ReportService {
       title,
       description,
       referenceCode,
+      schoolId,
       status: "new",
       urgency: "medium",
       reporterIdentity: {
@@ -149,7 +151,6 @@ export class ReportService {
         );
       } catch (error) {
         console.error("Failed to send confirmation email:", error);
-        // Don't fail the report creation if email fails
       }
     }
 
@@ -203,8 +204,12 @@ export class ReportService {
 
   async getDashboardReports(
     query: GetReportsQuery,
-    _adminId: string,
+    adminId: string,
   ): Promise<DashboardResponse> {
+    // Get admin's school
+    const admin = await Admin.findById(adminId);
+    if (!admin) throw new ApiError(404, "Admin not found");
+
     const {
       status,
       category,
@@ -212,6 +217,7 @@ export class ReportService {
       assignedTo,
       search,
       dateFrom,
+      schoolId,
       dateTo,
       page = 1,
       limit = 20,
@@ -219,7 +225,13 @@ export class ReportService {
     } = query;
 
     // Build filter
-    const filter: any = {};
+    const filter: any = { schoolId: admin.schoolId };
+
+    // If super-admin and schoolId param provided, override
+    if (admin.role === "super-admin" && schoolId) {
+      filter.schoolId = schoolId;
+    }
+
     if (status) filter.status = status;
     if (category) filter.category = category;
     if (urgency) filter.urgency = urgency;

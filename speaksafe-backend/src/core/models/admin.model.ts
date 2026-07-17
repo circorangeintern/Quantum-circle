@@ -5,11 +5,19 @@ export interface IAdmin extends Document {
   email: string;
   passwordHash: string;
   name: string;
+  schoolId: Schema.Types.ObjectId | string;
   role: "super-admin" | "admin" | "viewer";
   department: string;
   isActive: boolean;
   lastLoginAt?: Date;
   refreshToken?: string;
+  permissions: {
+    canAssign: boolean;
+    canResolve: boolean;
+    canViewAll: boolean;
+    canDelete: boolean;
+    canManageUsers: boolean;
+  };
   preferences: {
     notifications: {
       newReports: boolean;
@@ -19,13 +27,6 @@ export interface IAdmin extends Document {
     };
     emailDigest: boolean;
     dashboardView: "list" | "grid";
-  };
-  permissions: {
-    canAssign: boolean;
-    canResolve: boolean;
-    canViewAll: boolean;
-    canDelete: boolean;
-    canManageUsers: boolean;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +49,11 @@ const AdminSchema = new Schema<IAdmin>(
       type: String,
       required: true,
     },
+    schoolId: {
+      type: Schema.Types.ObjectId,
+      ref: "School",
+      required: true,
+    },
     role: {
       type: String,
       enum: ["super-admin", "admin", "viewer"],
@@ -63,6 +69,28 @@ const AdminSchema = new Schema<IAdmin>(
     },
     lastLoginAt: Date,
     refreshToken: String,
+    permissions: {
+      canAssign: {
+        type: Boolean,
+        default: false,
+      },
+      canResolve: {
+        type: Boolean,
+        default: false,
+      },
+      canViewAll: {
+        type: Boolean,
+        default: false,
+      },
+      canDelete: {
+        type: Boolean,
+        default: false,
+      },
+      canManageUsers: {
+        type: Boolean,
+        default: false,
+      },
+    },
     preferences: {
       notifications: {
         newReports: {
@@ -92,28 +120,6 @@ const AdminSchema = new Schema<IAdmin>(
         default: "list",
       },
     },
-    permissions: {
-      canAssign: {
-        type: Boolean,
-        default: false,
-      },
-      canResolve: {
-        type: Boolean,
-        default: false,
-      },
-      canViewAll: {
-        type: Boolean,
-        default: false,
-      },
-      canDelete: {
-        type: Boolean,
-        default: false,
-      },
-      canManageUsers: {
-        type: Boolean,
-        default: false,
-      },
-    },
   },
   {
     timestamps: true,
@@ -122,7 +128,10 @@ const AdminSchema = new Schema<IAdmin>(
   },
 );
 
+// Indexes
 AdminSchema.index({ email: 1 });
-AdminSchema.index({ role: 1 });
+AdminSchema.index({ schoolId: 1 });
+AdminSchema.index({ schoolId: 1, role: 1 });
+AdminSchema.index({ schoolId: 1, isActive: 1 });
 
 export const Admin = mongoose.model<IAdmin>("Admin", AdminSchema);

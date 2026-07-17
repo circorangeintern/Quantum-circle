@@ -48,6 +48,10 @@ export const createReportSchema = z.object({
     peopleInvolved: z.string().trim().max(200).optional(),
     isAnonymous: z.coerce.boolean().default(true),
     contactEmail: z.email().optional(),
+    schoolId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, "Invalid school ID")
+      .optional(),
   }),
 });
 
