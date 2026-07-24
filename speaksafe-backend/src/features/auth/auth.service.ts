@@ -12,12 +12,12 @@ import {
   ChangePasswordRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
-  AuthAdmin,
 } from "./auth.types";
-import { PasswordReset } from "../../core/models/password-reset.model";
-import EmailService from "../../core/services/email.service";
-import { randomBytes } from "crypto";
+import { Admin } from "../../core/models/admin.model";
 import { School } from "../../core/models/school.model";
+import EmailService from "../../core/services/email.service";
+import { PasswordReset } from "../../core/models/password-reset.model";
+import { randomBytes } from "crypto";
 
 export class AuthService {
   private repository: AuthRepository;
@@ -33,58 +33,44 @@ export class AuthService {
   ): Promise<LoginResponse> {
     const { email, password } = credentials;
 
-    // Find admin
     const admin = await this.repository.findAdminByEmail(email);
     if (!admin) {
-      await this.repository.logAudit(
-        "login",
-        undefined,
-        { email },
-        ipAddress,
-        userAgent,
-      );
       throw new ApiError(401, "Invalid email or password");
     }
 
-    // Check if admin is active
     if (!admin.isActive) {
-      throw new ApiError(
-        403,
-        "Account is deactivated. Please contact your administrator.",
-      );
+      throw new ApiError(403, "Account is deactivated");
     }
 
-    // Verify password
     const isPasswordValid = await comparePassword(password, admin.passwordHash);
     if (!isPasswordValid) {
-      await this.repository.logAudit(
-        "login",
-        admin.id,
-        { email },
-        ipAddress,
-        userAgent,
-      );
       throw new ApiError(401, "Invalid email or password");
     }
 
-    // Get school info
-    const school = await School.findById(admin.schoolId);
-    if (!school) {
-      throw new ApiError(404, "School not found for this admin");
+    // Get school info (if admin belongs to a school)
+    let school = null;
+    if (admin.schoolId) {
+      school = await School.findById(admin.schoolId);
+      if (!school) {
+        throw new ApiError(404, "School not found");
+      }
+      if (!school.isActive) {
+        throw new ApiError(403, "School is deactivated");
+      }
     }
 
     // Generate tokens
-    const payload: JwtPayload = {
-      adminId: admin.id,
+    const tokens = generateTokens({
+      adminId: admin._id.toString(),
       email: admin.email,
-    };
-    const tokens = generateTokens(payload);
+    });
 
     // Update refresh token
-    await this.repository.updateRefreshToken(admin.id, tokens.refreshToken);
-    await this.repository.updateLastLogin(admin.id);
+    admin.refreshToken = tokens.refreshToken;
+    admin.lastLoginAt = new Date();
+    await admin.save();
 
-    // Log successful login
+    // Log audit
     await this.repository.logAudit(
       "login",
       admin.id,
@@ -93,51 +79,71 @@ export class AuthService {
       userAgent,
     );
 
-    // Get permissions (super-admin gets all)
-    const permissions =
-      admin.role === "super-admin"
-        ? {
-            canAssign: true,
-            canResolve: true,
-            canViewAll: true,
-            canDelete: true,
-            canManageUsers: true,
-          }
-        : admin.permissions || {
-            canAssign: false,
-            canResolve: false,
-            canViewAll: false,
-            canDelete: false,
-            canManageUsers: false,
-          };
-
-    return {
+    // Build response based on role
+    const response: LoginResponse = {
       admin: {
         id: admin.id,
         email: admin.email,
         name: admin.name,
         role: admin.role,
-        department: admin.department || "Student Affairs",
-        permissions,
-        preferences: admin.preferences || {
-          notifications: {
-            newReports: true,
-            urgentCases: true,
-            weeklySummary: false,
-            assignments: true,
-          },
-          emailDigest: false,
-          dashboardView: "list",
-        },
+        isActive: admin.isActive,
+        permissions: admin.permissions,
+        preferences: admin.preferences,
       },
-      school: {
+      tokens,
+    };
+
+    // Add school info if not system-admin
+    if (admin.role !== "system-admin" && school) {
+      response.school = {
         id: school.id,
         name: school.name,
         domain: school.domain,
         settings: school.settings,
-      },
-      tokens,
+      };
+    }
+
+    return response;
+  }
+
+  async getCurrentAdmin(adminId: string) {
+    const admin = await Admin.findById(adminId).select(
+      "-passwordHash -refreshToken",
+    );
+
+    if (!admin) {
+      throw new ApiError(404, "Admin not found");
+    }
+
+    const response: any = {
+      id: admin._id,
+      email: admin.email,
+      name: admin.name,
+      role: admin.role,
+      isActive: admin.isActive,
+      permissions: admin.permissions,
+      preferences: admin.preferences,
+      lastLoginAt: admin.lastLoginAt,
     };
+
+    // Add school info if not system-admin
+    if (admin.role !== "system-admin" && admin.schoolId) {
+      const school = await School.findById(admin.schoolId).select(
+        "name domain settings isActive stats",
+      );
+      if (school) {
+        response.school = {
+          id: school._id,
+          name: school.name,
+          domain: school.domain,
+          settings: school.settings,
+          isActive: school.isActive,
+          stats: school.stats,
+        };
+      }
+    }
+
+    return response;
   }
 
   async refreshToken(
@@ -196,48 +202,6 @@ export class AuthService {
   ): Promise<void> {
     await this.repository.updateRefreshToken(adminId, null);
     await this.repository.logAudit("logout", adminId, {}, ipAddress, userAgent);
-  }
-
-  async getCurrentAdmin(adminId: string): Promise<AuthAdmin> {
-    const admin = await this.repository.getAdminById(adminId);
-    if (!admin) {
-      throw new ApiError(404, "Admin not found");
-    }
-
-    const school = await School.findById(admin.schoolId);
-
-    const permissions =
-      admin.role === "super-admin"
-        ? {
-            canAssign: true,
-            canResolve: true,
-            canViewAll: true,
-            canDelete: true,
-            canManageUsers: true,
-          }
-        : admin.permissions || {
-            canAssign: false,
-            canResolve: false,
-            canViewAll: false,
-            canDelete: false,
-            canManageUsers: false,
-          };
-
-    return {
-      id: admin.id,
-      email: admin.email,
-      name: admin.name,
-      role: admin.role,
-      department: admin.department || "Student Affairs",
-      permissions,
-      school: school
-        ? {
-            id: school.id,
-            name: school.name,
-            domain: school.domain,
-          }
-        : undefined,
-    };
   }
 
   async changePassword(

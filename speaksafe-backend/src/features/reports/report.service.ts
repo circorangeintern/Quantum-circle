@@ -227,8 +227,8 @@ export class ReportService {
     // Build filter
     const filter: any = { schoolId: admin.schoolId };
 
-    // If super-admin and schoolId param provided, override
-    if (admin.role === "super-admin" && schoolId) {
+    // If school-admin and schoolId param provided, override
+    if (admin.role === "school-admin" && schoolId) {
       filter.schoolId = schoolId;
     }
 

@@ -2,13 +2,7 @@ import { Response, NextFunction } from "express";
 import { ApiResponse } from "../../core/utils/api-response.util";
 import UserService from "./user.service";
 import { AuthRequest } from "../auth/auth.middleware";
-import {
-  CreateUserInput,
-  UpdateUserInput,
-  GetUsersQuery,
-  UpdatePermissionsInput,
-  UpdatePreferencesInput,
-} from "./user.types";
+import { CreateUserInput, UpdateUserInput, GetUsersQuery } from "./user.types";
 import { ApiError } from "../../core/errors/api.error";
 
 export class UserController {
@@ -16,7 +10,7 @@ export class UserController {
     try {
       const data = req.body as CreateUserInput;
       const result = await UserService.createUser(data, req.adminId!);
-      ApiResponse.created(res, result, "User created successfully");
+      ApiResponse.created(res, result, "System admin created successfully");
     } catch (error) {
       next(error);
     }
@@ -36,11 +30,9 @@ export class UserController {
   async getUserById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-
       if (Array.isArray(id)) {
         throw new ApiError(400, "Invalid user ID");
       }
-
       const result = await UserService.getUserById(id);
       ApiResponse.success(res, result);
     } catch (error) {
@@ -56,39 +48,7 @@ export class UserController {
       }
       const data = req.body as UpdateUserInput;
       const result = await UserService.updateUser(id, data, req.adminId!);
-      ApiResponse.success(res, result, "User updated successfully");
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async updatePermissions(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      if (Array.isArray(id)) {
-        throw new ApiError(400, "Invalid user ID");
-      }
-      const permissions = req.body as UpdatePermissionsInput;
-      const result = await UserService.updatePermissions(
-        id,
-        permissions,
-        req.adminId!,
-      );
-      ApiResponse.success(res, result, "Permissions updated successfully");
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async updatePreferences(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      if (Array.isArray(id)) {
-        throw new ApiError(400, "Invalid user ID");
-      }
-      const preferences = req.body as UpdatePreferencesInput;
-      const result = await UserService.updatePreferences(id, preferences);
-      ApiResponse.success(res, result, "Preferences updated successfully");
+      ApiResponse.success(res, result, "System admin updated successfully");
     } catch (error) {
       next(error);
     }
@@ -97,13 +57,11 @@ export class UserController {
   async deleteUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-
       if (Array.isArray(id)) {
         throw new ApiError(400, "Invalid user ID");
       }
-
       await UserService.deleteUser(id, req.adminId!);
-      ApiResponse.success(res, null, "User deleted successfully");
+      ApiResponse.success(res, null, "System admin deleted successfully");
     } catch (error) {
       next(error);
     }
@@ -130,19 +88,6 @@ export class UserController {
     try {
       const stats = await UserService.getUserStats();
       ApiResponse.success(res, stats);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async getAvailableAdmins(
-    _req: AuthRequest,
-    res: Response,
-    next: NextFunction,
-  ) {
-    try {
-      const admins = await UserService.getAvailableAdmins();
-      ApiResponse.success(res, admins);
     } catch (error) {
       next(error);
     }

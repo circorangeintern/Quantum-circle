@@ -1,21 +1,11 @@
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import { ApiResponse } from "../../core/utils/api-response.util";
 import SchoolService from "./school.service";
 import { AuthRequest } from "../auth/auth.middleware";
-import { RegisterSchoolInput, InviteAdminInput } from "./school.service";
+import { InviteStaffInput } from "./school.service";
 import { ApiError } from "../../core/errors/api.error";
 
 export class SchoolController {
-  async registerSchool(req: Request, res: Response, next: NextFunction) {
-    try {
-      const data = req.body as RegisterSchoolInput;
-      const result = await SchoolService.registerSchool(data);
-      ApiResponse.created(res, result, "School registered successfully");
-    } catch (error) {
-      next(error);
-    }
-  }
-
   async getSchool(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
@@ -43,7 +33,7 @@ export class SchoolController {
     }
   }
 
-  async getSchoolAdmins(req: AuthRequest, res: Response, next: NextFunction) {
+  async getSchoolStaffs(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
 
@@ -51,14 +41,14 @@ export class SchoolController {
         throw new ApiError(400, "Invalid school ID");
       }
 
-      const result = await SchoolService.getSchoolAdmins(id, req.adminId!);
+      const result = await SchoolService.getSchoolStaffs(id, req.adminId!);
       ApiResponse.success(res, result);
     } catch (error) {
       next(error);
     }
   }
 
-  async inviteAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+  async inviteStaff(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
 
@@ -66,27 +56,27 @@ export class SchoolController {
         throw new ApiError(400, "Invalid school ID");
       }
 
-      const data = req.body as InviteAdminInput;
-      const result = await SchoolService.inviteAdmin(id, req.adminId!, data);
-      ApiResponse.created(res, result, "Admin invited successfully");
+      const data = req.body as InviteStaffInput;
+      const result = await SchoolService.inviteStaff(id, req.adminId!, data);
+      ApiResponse.created(res, result, "Staff member invited successfully");
     } catch (error) {
       next(error);
     }
   }
 
-  async removeAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+  async removeStaff(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { id, adminId } = req.params;
+      const { id, staffId } = req.params;
 
       if (Array.isArray(id)) {
         throw new ApiError(400, "Invalid school ID");
       }
 
-      if (Array.isArray(adminId)) {
-        throw new ApiError(400, "Invalid admin ID");
+      if (Array.isArray(staffId)) {
+        throw new ApiError(400, "Invalid staff ID");
       }
 
-      const result = await SchoolService.removeAdmin(id, req.adminId!, adminId);
+      const result = await SchoolService.removeStaff(id, req.adminId!, staffId);
       ApiResponse.success(res, result);
     } catch (error) {
       next(error);

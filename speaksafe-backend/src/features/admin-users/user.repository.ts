@@ -27,17 +27,10 @@ export class UserRepository {
     users: IAdmin[];
     total: number;
   }> {
-    const {
-      role,
-      isActive,
-      search,
-      page = 1,
-      limit = 20,
-      sortBy = "newest",
-    } = query;
+    const { isActive, search, page = 1, limit = 20, sortBy = "newest" } = query;
 
-    const filter: any = {};
-    if (role) filter.role = role;
+    // Only fetch system-admins
+    const filter: any = { role: "system-admin" };
     if (isActive !== undefined) filter.isActive = isActive;
     if (search) {
       filter.$or = [
@@ -95,32 +88,14 @@ export class UserRepository {
     total: number;
     active: number;
     inactive: number;
-    roles: {
-      "super-admin": number;
-      admin: number;
-      viewer: number;
-    };
   }> {
-    const [total, active, inactive, superAdmin, admin, viewer] =
-      await Promise.all([
-        Admin.countDocuments(),
-        Admin.countDocuments({ isActive: true }),
-        Admin.countDocuments({ isActive: false }),
-        Admin.countDocuments({ role: "super-admin" }),
-        Admin.countDocuments({ role: "admin" }),
-        Admin.countDocuments({ role: "viewer" }),
-      ]);
+    const [total, active, inactive] = await Promise.all([
+      Admin.countDocuments({ role: "system-admin" }),
+      Admin.countDocuments({ role: "system-admin", isActive: true }),
+      Admin.countDocuments({ role: "system-admin", isActive: false }),
+    ]);
 
-    return {
-      total,
-      active,
-      inactive,
-      roles: {
-        "super-admin": superAdmin,
-        admin,
-        viewer,
-      },
-    };
+    return { total, active, inactive };
   }
 
   async updateLastLogin(userId: string): Promise<void> {
@@ -147,19 +122,22 @@ export class UserRepository {
     });
   }
 
-  async findActiveAdmins(): Promise<IAdmin[]> {
-    return Admin.find({ isActive: true })
+  async findActiveSystemAdmins(): Promise<IAdmin[]> {
+    return Admin.find({ role: "system-admin", isActive: true })
       .select("-passwordHash -refreshToken")
       .sort({ name: 1 });
   }
 
-  async findAdminsWithPermission(
-    permission: keyof IAdmin["permissions"],
-  ): Promise<IAdmin[]> {
-    return Admin.find({
-      isActive: true,
-      [`permissions.${permission}`]: true,
+  async findSystemAdminById(id: string): Promise<IAdmin | null> {
+    return Admin.findOne({
+      _id: new Types.ObjectId(id),
+      role: "system-admin",
     }).select("-passwordHash -refreshToken");
+  }
+
+  // Prevent deleting the last system-admin
+  async getSystemAdminCount(): Promise<number> {
+    return Admin.countDocuments({ role: "system-admin" });
   }
 }
 

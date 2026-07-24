@@ -5,37 +5,35 @@ import { validate } from "../../core/middlewares/validate.middleware";
 import {
   createUserSchema,
   updateUserSchema,
-  updatePermissionsSchema,
-  updatePreferencesSchema,
   getUsersQuerySchema,
   deleteUserSchema,
   resetPasswordSchema,
-  getAvailableAdminsSchema,
 } from "./user.validators";
+import {
+  checkUserExists,
+  preventDeleteSelf,
+  preventLastSystemAdminDeletion,
+  validateEmailUniqueness,
+  ensureSystemAdmin,
+} from "./user.middleware";
 
 const router = Router();
 const controller = new UserController();
 
-// Get available admins (for assignment dropdown)
-router.get(
-  "/available",
-  authenticate,
-  validate(getAvailableAdminsSchema),
-  controller.getAvailableAdmins.bind(controller),
-);
+// ALL routes require authentication AND system-admin role
+router.use(authenticate);
+router.use(ensureSystemAdmin);
 
 // Get user stats
 router.get(
   "/stats",
-  authenticate,
   requirePermission("canViewAll"),
   controller.getStats.bind(controller),
 );
 
-// Get users
+// Get users (only system-admins)
 router.get(
   "/",
-  authenticate,
   requirePermission("canViewAll"),
   validate(getUsersQuerySchema),
   controller.getUsers.bind(controller),
@@ -44,62 +42,48 @@ router.get(
 // Get user by ID
 router.get(
   "/:id",
-  authenticate,
   requirePermission("canViewAll"),
   validate(deleteUserSchema),
+  checkUserExists,
   controller.getUserById.bind(controller),
 );
 
-// Create user
+// Create system-admin
 router.post(
   "/",
-  authenticate,
   requirePermission("canManageUsers"),
   validate(createUserSchema),
+  validateEmailUniqueness,
   controller.createUser.bind(controller),
 );
 
-// Update user
+// Update system-admin
 router.put(
   "/:id",
-  authenticate,
   requirePermission("canManageUsers"),
   validate(updateUserSchema),
+  checkUserExists,
+  validateEmailUniqueness,
   controller.updateUser.bind(controller),
 );
 
-// Update user permissions
-router.put(
-  "/:id/permissions",
-  authenticate,
-  requirePermission("canManageUsers"),
-  validate(updatePermissionsSchema),
-  controller.updatePermissions.bind(controller),
-);
-
-// Update user preferences
-router.put(
-  "/:id/preferences",
-  authenticate,
-  validate(updatePreferencesSchema),
-  controller.updatePreferences.bind(controller),
-);
-
-// Reset user password
+// Reset system-admin password
 router.post(
   "/:id/reset-password",
-  authenticate,
   requirePermission("canManageUsers"),
   validate(resetPasswordSchema),
+  checkUserExists,
   controller.resetPassword.bind(controller),
 );
 
-// Delete user
+// Delete system-admin
 router.delete(
   "/:id",
-  authenticate,
   requirePermission("canManageUsers"),
   validate(deleteUserSchema),
+  checkUserExists,
+  preventDeleteSelf,
+  preventLastSystemAdminDeletion,
   controller.deleteUser.bind(controller),
 );
 

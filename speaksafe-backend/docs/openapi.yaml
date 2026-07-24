@@ -6,12 +6,25 @@ info:
     Anonymous reporting system for boarding schools with multi-school support.
 
     ## Key Features
-    - **School Registration** - Register a school and create super admin
+    - **School Registration** - Schools submit registration requests (pending approval)
     - **Multi-School Support** - Each school has isolated data
-    - **Admin Management** - Super admins can invite/remove admins
+    - **Three User Roles** - System Admin, School Admin, School Staff
     - **Anonymous Reporting** - Submit reports without revealing identity
     - **Status Tracking** - Check report status using reference codes
     - **Authority Dashboard** - Manage and investigate reports
+
+    ## User Roles
+    | Role | Who | Access |
+    |------|-----|--------|
+    | **System Admin** | SpeakSafe Team | Full platform access |
+    | **School Admin** | School Authority | Full school access |
+    | **School Staff** | Staff under School Admin | Limited access (assigned reports only) |
+
+    ## Authentication
+    - JWT tokens stored in HTTP-Only Cookies
+    - Access Token expires in 15 minutes
+    - Refresh Token expires in 7 days
+    - Use cookie `accessToken` or `Authorization: Bearer <token>` header
 
   contact:
     name: SpeakSafe Backend Team
@@ -21,22 +34,22 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:5000/api/v1
-    description: Development Server
   - url: https://speaksafe-puzj.onrender.com/api/v1
     description: Production Server
+  - url: http://localhost:5000/api/v1
+    description: Development Server
 
 tags:
   - name: Auth
-    description: Authentication endpoints for authorities
+    description: Authentication endpoints for all users
+  - name: Registrations
+    description: School registration and review (System Admin only)
   - name: Schools
-    description: School registration and management (super-admin)
+    description: School management (School Admin + System Admin)
   - name: Reports
     description: Report submission and management
-  - name: Admin-Requests
-    description: Admin account requests
   - name: Admin-Users
-    description: Admin user management
+    description: System Admin management (System Admin only)
 
 # ==================== SECURITY ====================
 components:
@@ -83,217 +96,6 @@ components:
         data:
           type: object
 
-    # ====== School Schemas ======
-    RegisterSchoolRequest:
-      type: object
-      required:
-        - schoolName
-        - domain
-        - adminEmail
-        - adminName
-        - adminPassword
-      properties:
-        schoolName:
-          type: string
-          minLength: 2
-          maxLength: 100
-          example: "St. Mary's School"
-        domain:
-          type: string
-          minLength: 2
-          maxLength: 100
-          example: "stmarys.edu"
-          description: "Email domain for school (e.g., stmarys.edu)"
-        adminEmail:
-          type: string
-          format: email
-          example: "admin@stmarys.edu"
-        adminName:
-          type: string
-          minLength: 2
-          maxLength: 100
-          example: "John Smith"
-        adminPassword:
-          type: string
-          minLength: 8
-          example: "AdminPassword123!"
-          description: "Must contain at least one uppercase, one lowercase, and one number"
-
-    RegisterSchoolResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            school:
-              $ref: "#/components/schemas/SchoolResponse"
-            admin:
-              $ref: "#/components/schemas/AdminResponse"
-            tokens:
-              $ref: "#/components/schemas/Tokens"
-
-    SchoolResponse:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        domain:
-          type: string
-        address:
-          type: string
-          nullable: true
-        phone:
-          type: string
-          nullable: true
-        email:
-          type: string
-          nullable: true
-        website:
-          type: string
-          nullable: true
-        logo:
-          type: string
-          nullable: true
-        isActive:
-          type: boolean
-        settings:
-          type: object
-          properties:
-            allowAnonymous:
-              type: boolean
-            requireApproval:
-              type: boolean
-            maxAdmins:
-              type: number
-            retentionDays:
-              type: number
-            allowAttachments:
-              type: boolean
-        subscription:
-          type: object
-          properties:
-            plan:
-              type: string
-              enum: [free, basic, premium, enterprise]
-            expiryDate:
-              type: string
-              format: date-time
-              nullable: true
-            features:
-              type: array
-              items:
-                type: string
-        stats:
-          type: object
-          properties:
-            totalReports:
-              type: number
-            activeAdmins:
-              type: number
-            resolvedCases:
-              type: number
-            pendingCases:
-              type: number
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-
-    UpdateSchoolRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          minLength: 2
-          maxLength: 100
-        address:
-          type: string
-          maxLength: 200
-        phone:
-          type: string
-          maxLength: 20
-        email:
-          type: string
-          format: email
-        website:
-          type: string
-          format: uri
-        logo:
-          type: string
-          format: uri
-        settings:
-          type: object
-          properties:
-            allowAnonymous:
-              type: boolean
-            requireApproval:
-              type: boolean
-            maxAdmins:
-              type: number
-              minimum: 1
-            retentionDays:
-              type: number
-              minimum: 1
-            allowAttachments:
-              type: boolean
-
-    InviteAdminRequest:
-      type: object
-      required:
-        - email
-        - name
-      properties:
-        email:
-          type: string
-          format: email
-        name:
-          type: string
-          minLength: 2
-          maxLength: 100
-        role:
-          type: string
-          enum: [admin, viewer]
-          default: admin
-        permissions:
-          $ref: "#/components/schemas/Permissions"
-
-    SchoolStatsResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            school:
-              $ref: "#/components/schemas/SchoolResponse"
-            reports:
-              type: object
-              properties:
-                total:
-                  type: number
-                resolved:
-                  type: number
-                pending:
-                  type: number
-                resolutionRate:
-                  type: number
-            admins:
-              type: object
-              properties:
-                total:
-                  type: number
-                active:
-                  type: number
-
     # ====== Auth Schemas ======
     LoginRequest:
       type: object
@@ -304,7 +106,7 @@ components:
         email:
           type: string
           format: email
-          example: admin@school.edu
+          example: admin@stmarys.edu
         password:
           type: string
           minLength: 8
@@ -348,7 +150,7 @@ components:
           type: string
         role:
           type: string
-          enum: [super-admin, admin, viewer]
+          enum: [system-admin, school-admin, school-staff]
         department:
           type: string
         isActive:
@@ -379,13 +181,16 @@ components:
           description: Can resolve reports
         canViewAll:
           type: boolean
-          description: Can view all reports
+          description: Can view all reports in school
+        canManageStaff:
+          type: boolean
+          description: Can invite/remove staff
         canDelete:
           type: boolean
           description: Can delete reports
-        canManageUsers:
+        canManageSchool:
           type: boolean
-          description: Can manage admin users
+          description: Can update school settings
 
     Preferences:
       type: object
@@ -450,6 +255,248 @@ components:
       properties:
         refreshToken:
           type: string
+
+    # ====== Registration Schemas ======
+    SubmitRegistrationRequest:
+      type: object
+      required:
+        - schoolName
+        - domain
+        - adminName
+        - adminEmail
+        - adminPassword
+      properties:
+        schoolName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "St. Mary's School"
+        domain:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "stmarys.edu"
+          description: "Email domain for school"
+        adminName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "John Smith"
+        adminEmail:
+          type: string
+          format: email
+          example: "admin@stmarys.edu"
+        adminPassword:
+          type: string
+          minLength: 8
+          example: "AdminPassword123!"
+          description: "Must contain uppercase, lowercase, and number"
+        address:
+          type: string
+          maxLength: 200
+          optional: true
+        phone:
+          type: string
+          maxLength: 20
+          optional: true
+        email:
+          type: string
+          format: email
+          optional: true
+        website:
+          type: string
+          format: uri
+          optional: true
+
+    RegistrationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            schoolName:
+              type: string
+            domain:
+              type: string
+            adminEmail:
+              type: string
+            status:
+              type: string
+              enum: [pending, approved, rejected]
+            submittedAt:
+              type: string
+              format: date-time
+
+    ReviewRegistrationRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+        reviewNotes:
+          type: string
+          maxLength: 500
+
+    RegistrationStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            total:
+              type: number
+            pending:
+              type: number
+            approved:
+              type: number
+            rejected:
+              type: number
+
+    # ====== School Schemas ======
+    SchoolResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        domain:
+          type: string
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        website:
+          type: string
+          nullable: true
+        logo:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        settings:
+          type: object
+          properties:
+            allowAnonymous:
+              type: boolean
+            allowAttachments:
+              type: boolean
+            retentionDays:
+              type: number
+        stats:
+          type: object
+          properties:
+            totalReports:
+              type: number
+            activeAdmins:
+              type: number
+            resolvedCases:
+              type: number
+            pendingCases:
+              type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateSchoolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 20
+        email:
+          type: string
+          format: email
+        website:
+          type: string
+          format: uri
+        logo:
+          type: string
+          format: uri
+        settings:
+          type: object
+          properties:
+            allowAnonymous:
+              type: boolean
+            allowAttachments:
+              type: boolean
+            retentionDays:
+              type: number
+              minimum: 1
+
+    InviteStaffRequest:
+      type: object
+      required:
+        - email
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        permissions:
+          type: object
+          properties:
+            canResolve:
+              type: boolean
+
+    SchoolStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            school:
+              $ref: "#/components/schemas/SchoolResponse"
+            reports:
+              type: object
+              properties:
+                total:
+                  type: number
+                resolved:
+                  type: number
+                pending:
+                  type: number
+                resolutionRate:
+                  type: number
+            admins:
+              type: object
+              properties:
+                total:
+                  type: number
+                active:
+                  type: number
 
     # ====== Report Schemas ======
     ReportCategory:
@@ -817,45 +864,8 @@ components:
         status:
           $ref: "#/components/schemas/ReportStatus"
 
-    # ====== Admin Request Schemas ======
-    CreateRequestRequest:
-      type: object
-      required:
-        - name
-        - email
-        - school
-        - role
-      properties:
-        name:
-          type: string
-          minLength: 2
-          maxLength: 100
-        email:
-          type: string
-          format: email
-        school:
-          type: string
-          minLength: 2
-          maxLength: 200
-        role:
-          type: string
-          minLength: 2
-          maxLength: 100
-
-    ReviewRequestRequest:
-      type: object
-      required:
-        - status
-      properties:
-        status:
-          type: string
-          enum: [approved, rejected]
-        reviewNotes:
-          type: string
-          maxLength: 500
-
     # ====== Admin User Schemas ======
-    CreateUserRequest:
+    CreateSystemAdminRequest:
       type: object
       required:
         - email
@@ -868,274 +878,63 @@ components:
           type: string
           minLength: 2
           maxLength: 100
+        isActive:
+          type: boolean
+          default: true
+
+    UpdateSystemAdminRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        isActive:
+          type: boolean
+
+    SystemAdminResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
         role:
           type: string
-          enum: [admin, viewer]
-          default: admin
-        department:
+          enum: [system-admin]
+        isActive:
+          type: boolean
+        lastLoginAt:
           type: string
-          maxLength: 100
-        permissions:
-          $ref: "#/components/schemas/Permissions"
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
-    UpdatePermissionsRequest:
+    SystemAdminStatsResponse:
       type: object
       properties:
-        canAssign:
+        success:
           type: boolean
-        canResolve:
-          type: boolean
-        canViewAll:
-          type: boolean
-        canDelete:
-          type: boolean
-        canManageUsers:
-          type: boolean
-
-    UpdatePreferencesRequest:
-      type: object
-      properties:
-        notifications:
+          example: true
+        data:
           type: object
           properties:
-            newReports:
-              type: boolean
-            urgentCases:
-              type: boolean
-            weeklySummary:
-              type: boolean
-            assignments:
-              type: boolean
-        emailDigest:
-          type: boolean
-        dashboardView:
-          type: string
-          enum: [list, grid]
+            total:
+              type: number
+            active:
+              type: number
+            inactive:
+              type: number
 
 # ==================== PATHS ====================
 paths:
-  # ====== SCHOOL ROUTES ======
-  /schools/register:
-    post:
-      tags:
-        - Schools
-      summary: Register a new school
-      description: Register a new school and create the first super admin account
-      operationId: registerSchool
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RegisterSchoolRequest"
-      responses:
-        "201":
-          description: School registered successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RegisterSchoolResponse"
-        "409":
-          description: School domain or admin email already exists
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /schools/{id}:
-    get:
-      tags:
-        - Schools
-      summary: Get school details
-      description: Get details of a specific school (requires authentication)
-      operationId: getSchool
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: School ID
-      responses:
-        "200":
-          description: School details retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: "#/components/schemas/SchoolResponse"
-        "403":
-          description: Access denied to this school
-        "404":
-          description: School not found
-
-    put:
-      tags:
-        - Schools
-      summary: Update school settings
-      description: Update school information and settings (requires canManageUsers permission)
-      operationId: updateSchool
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateSchoolRequest"
-      responses:
-        "200":
-          description: School updated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: "#/components/schemas/SchoolResponse"
-
-  /schools/{id}/admins:
-    get:
-      tags:
-        - Schools
-      summary: Get school admins
-      description: Get all admins belonging to a school (requires authentication)
-      operationId: getSchoolAdmins
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Admins retrieved
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/AdminResponse"
-
-  /schools/{id}/invite:
-    post:
-      tags:
-        - Schools
-      summary: Invite admin to school
-      description: Invite a new admin to join the school (requires canManageUsers permission)
-      operationId: inviteAdmin
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/InviteAdminRequest"
-      responses:
-        "201":
-          description: Admin invited successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    $ref: "#/components/schemas/AdminResponse"
-        "400":
-          description: Max admin limit reached
-        "409":
-          description: Email already registered
-
-  /schools/{id}/admins/{adminId}:
-    delete:
-      tags:
-        - Schools
-      summary: Remove admin from school
-      description: Remove/disable an admin from the school (requires canManageUsers permission)
-      operationId: removeAdmin
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: School ID
-        - name: adminId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Admin ID to remove
-      responses:
-        "200":
-          description: Admin removed successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-        "400":
-          description: Cannot remove super-admin or self
-
-  /schools/{id}/stats:
-    get:
-      tags:
-        - Schools
-      summary: Get school statistics
-      description: Get comprehensive statistics for a school (requires authentication)
-      operationId: getSchoolStats
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: School statistics retrieved
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SchoolStatsResponse"
-
   # ====== AUTH ROUTES ======
   /auth/login:
     post:
@@ -1223,7 +1022,7 @@ paths:
       tags:
         - Auth
       summary: Get Current Admin
-      description: Get the currently logged-in admin's information
+      description: Get the currently logged-in admin's information with school context
       operationId: getCurrentAdmin
       security:
         - cookieAuth: []
@@ -1328,13 +1127,434 @@ paths:
                       role:
                         type: string
 
+  # ====== REGISTRATION ROUTES ======
+  /registrations:
+    post:
+      tags:
+        - Registrations
+      summary: Submit School Registration
+      description: Submit a school registration request (Public)
+      operationId: submitRegistration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitRegistrationRequest"
+      responses:
+        "201":
+          description: Registration submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationResponse"
+        "409":
+          description: Domain or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      tags:
+        - Registrations
+      summary: Get Registrations
+      description: Get all school registrations (System Admin only)
+      operationId: getRegistrations
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: number
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 20
+      responses:
+        "200":
+          description: Registrations retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      registrations:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/RegistrationResponse"
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+                      stats:
+                        $ref: "#/components/schemas/RegistrationStatsResponse"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Insufficient permissions
+
+  /registrations/stats:
+    get:
+      tags:
+        - Registrations
+      summary: Get Registration Stats
+      description: Get statistics for school registrations (System Admin only)
+      operationId: getRegistrationStats
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationStatsResponse"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Insufficient permissions
+
+  /registrations/{id}/review:
+    put:
+      tags:
+        - Registrations
+      summary: Review Registration
+      description: Approve or reject a school registration (System Admin only)
+      operationId: reviewRegistration
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Registration ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRegistrationRequest"
+      responses:
+        "200":
+          description: Registration reviewed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      status:
+                        type: string
+                        enum: [approved, rejected]
+                      school:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          domain:
+                            type: string
+                      admin:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          email:
+                            type: string
+                          name:
+                            type: string
+                      tokens:
+                        $ref: "#/components/schemas/Tokens"
+        "404":
+          description: Registration not found
+        "400":
+          description: Registration already reviewed
+
+  # ====== SCHOOL ROUTES ======
+  /schools/{id}:
+    get:
+      tags:
+        - Schools
+      summary: Get School Details
+      description: Get details of a specific school (School Admin + System Admin)
+      operationId: getSchool
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: School ID
+      responses:
+        "200":
+          description: School details retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/SchoolResponse"
+        "403":
+          description: Access denied to this school
+        "404":
+          description: School not found
+
+    put:
+      tags:
+        - Schools
+      summary: Update School
+      description: Update school information and settings (School Admin + System Admin)
+      operationId: updateSchool
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSchoolRequest"
+      responses:
+        "200":
+          description: School updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/SchoolResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          description: School not found
+
+  /schools/{id}/staff:
+    get:
+      tags:
+        - Schools
+      summary: List School Staff
+      description: Get all staff members belonging to a school (School Admin + System Admin)
+      operationId: getSchoolStaff
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: School ID
+      responses:
+        "200":
+          description: Staff list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminResponse"
+
+    post:
+      tags:
+        - Schools
+      summary: Invite Staff
+      description: Invite a new staff member to the school (School Admin only)
+      operationId: inviteStaff
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: School ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteStaffRequest"
+      responses:
+        "201":
+          description: Staff invited successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/AdminResponse"
+        "403":
+          description: Insufficient permissions
+        "409":
+          description: Email already registered
+
+  /schools/{id}/staff/{staffId}:
+    put:
+      tags:
+        - Schools
+      summary: Update Staff
+      description: Update staff member details (School Admin only)
+      operationId: updateStaff
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: School ID
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Staff ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                permissions:
+                  type: object
+                  properties:
+                    canResolve:
+                      type: boolean
+      responses:
+        "200":
+          description: Staff updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/AdminResponse"
+        "404":
+          description: Staff not found
+
+    delete:
+      tags:
+        - Schools
+      summary: Remove Staff
+      description: Remove/disable a staff member from the school (School Admin only)
+      operationId: removeStaff
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: School ID
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Staff ID to remove
+      responses:
+        "200":
+          description: Staff removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        "400":
+          description: Cannot remove self or school-admin
+
+  /schools/{id}/stats:
+    get:
+      tags:
+        - Schools
+      summary: Get School Statistics
+      description: Get comprehensive statistics for a school (School Admin + System Admin)
+      operationId: getSchoolStats
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: School ID
+      responses:
+        "200":
+          description: School statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchoolStatsResponse"
+
   # ====== REPORT ROUTES ======
   /reports:
     post:
       tags:
         - Reports
       summary: Submit Report
-      description: Submit a new anonymous or identified report
+      description: Submit a new anonymous or identified report (Public)
       operationId: submitReport
       requestBody:
         required: true
@@ -1344,7 +1564,7 @@ paths:
               $ref: "#/components/schemas/CreateReportRequest"
       responses:
         "201":
-          description: Report submitted
+          description: Report submitted successfully
           content:
             application/json:
               schema:
@@ -1359,7 +1579,7 @@ paths:
       tags:
         - Reports
       summary: Check Report Status
-      description: Check the status of a report using its reference code
+      description: Check the status of a report using its reference code (Public)
       operationId: checkStatus
       parameters:
         - name: referenceCode
@@ -1384,7 +1604,7 @@ paths:
       tags:
         - Reports
       summary: Get Dashboard Reports
-      description: Get all reports with optional filters (requires authentication)
+      description: Get all reports with optional filters (Authenticated)
       operationId: getDashboardReports
       security:
         - cookieAuth: []
@@ -1443,7 +1663,7 @@ paths:
       tags:
         - Reports
       summary: Get Report Details
-      description: Get detailed information about a specific report
+      description: Get detailed information about a specific report (Authenticated)
       operationId: getReportDetail
       security:
         - cookieAuth: []
@@ -1596,7 +1816,7 @@ paths:
       tags:
         - Reports
       summary: Add Internal Note
-      description: Add an internal note to a report (requires authentication)
+      description: Add an internal note to a report (Authenticated)
       operationId: addNote
       security:
         - cookieAuth: []
@@ -1623,7 +1843,7 @@ paths:
       tags:
         - Reports
       summary: Get Report Analytics
-      description: Get analytics and statistics about reports (requires authentication)
+      description: Get analytics and statistics about reports (Authenticated)
       operationId: getAnalytics
       security:
         - cookieAuth: []
@@ -1702,142 +1922,17 @@ paths:
         "401":
           description: Not authenticated
 
-  # ====== ADMIN REQUESTS ROUTES ======
-  /admin-requests:
-    post:
-      tags:
-        - Admin-Requests
-      summary: Submit Admin Request
-      description: Submit a request to become a school authority
-      operationId: submitRequest
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateRequestRequest"
-      responses:
-        "201":
-          description: Request submitted
-        "409":
-          description: Email already has a pending request
-
-    get:
-      tags:
-        - Admin-Requests
-      summary: Get Admin Requests
-      description: Get all admin requests (requires canManageUsers permission)
-      operationId: getRequests
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [pending, approved, rejected]
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: page
-          in: query
-          schema:
-            type: number
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: number
-            default: 20
-        - name: stats
-          in: query
-          schema:
-            type: boolean
-            default: false
-      responses:
-        "200":
-          description: Requests retrieved
-        "401":
-          description: Not authenticated
-
-  /admin-requests/stats:
-    get:
-      tags:
-        - Admin-Requests
-      summary: Get Request Stats
-      description: Get statistics for admin requests (requires canManageUsers permission)
-      operationId: getRequestStats
-      security:
-        - cookieAuth: []
-      responses:
-        "200":
-          description: Statistics retrieved
-
-  /admin-requests/{id}/review:
-    put:
-      tags:
-        - Admin-Requests
-      summary: Review Admin Request
-      description: Approve or reject an admin request (requires canManageUsers permission)
-      operationId: reviewRequest
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ReviewRequestRequest"
-      responses:
-        "200":
-          description: Request reviewed
-        "404":
-          description: Request not found
-
-  /admin-requests/{id}:
-    delete:
-      tags:
-        - Admin-Requests
-      summary: Delete Admin Request
-      description: Delete an admin request (requires canManageUsers permission)
-      operationId: deleteRequest
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Request deleted
-        "404":
-          description: Request not found
-
   # ====== ADMIN USERS ROUTES ======
   /admin-users:
     get:
       tags:
         - Admin-Users
-      summary: Get Admin Users
-      description: Get all admin users (requires canViewAll permission)
-      operationId: getUsers
+      summary: List System Admins
+      description: Get all system admins (System Admin only)
+      operationId: getSystemAdmins
       security:
         - cookieAuth: []
       parameters:
-        - name: role
-          in: query
-          schema:
-            type: string
-            enum: [admin, viewer, super-admin]
         - name: isActive
           in: query
           schema:
@@ -1863,16 +1958,36 @@ paths:
             default: false
       responses:
         "200":
-          description: Users retrieved
+          description: System admins retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/SystemAdminResponse"
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+                      stats:
+                        $ref: "#/components/schemas/SystemAdminStatsResponse"
         "401":
           description: Not authenticated
+        "403":
+          description: Insufficient permissions
 
     post:
       tags:
         - Admin-Users
-      summary: Create Admin User
-      description: Create a new admin user (requires canManageUsers permission)
-      operationId: createUser
+      summary: Create System Admin
+      description: Create a new system admin (System Admin only)
+      operationId: createSystemAdmin
       security:
         - cookieAuth: []
       requestBody:
@@ -1880,46 +1995,46 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateUserRequest"
+              $ref: "#/components/schemas/CreateSystemAdminRequest"
       responses:
         "201":
-          description: User created
+          description: System admin created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/SystemAdminResponse"
         "409":
           description: Email already exists
-
-  /admin-users/available:
-    get:
-      tags:
-        - Admin-Users
-      summary: Get Available Admins
-      description: Get all active admins for assignment dropdowns
-      operationId: getAvailableAdmins
-      security:
-        - cookieAuth: []
-      responses:
-        "200":
-          description: Available admins retrieved
 
   /admin-users/stats:
     get:
       tags:
         - Admin-Users
-      summary: Get User Stats
-      description: Get statistics for admin users (requires canViewAll permission)
-      operationId: getUserStats
+      summary: Get System Admin Stats
+      description: Get statistics for system admins (System Admin only)
+      operationId: getSystemAdminStats
       security:
         - cookieAuth: []
       responses:
         "200":
           description: Statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemAdminStatsResponse"
 
   /admin-users/{id}:
     get:
       tags:
         - Admin-Users
-      summary: Get Admin User
-      description: Get a specific admin user (requires canViewAll permission)
-      operationId: getUser
+      summary: Get System Admin
+      description: Get a specific system admin (System Admin only)
+      operationId: getSystemAdmin
       security:
         - cookieAuth: []
       parameters:
@@ -1930,16 +2045,25 @@ paths:
             type: string
       responses:
         "200":
-          description: User retrieved
+          description: System admin retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/SystemAdminResponse"
         "404":
-          description: User not found
+          description: System admin not found
 
     put:
       tags:
         - Admin-Users
-      summary: Update Admin User
-      description: Update an admin user (requires canManageUsers permission)
-      operationId: updateUser
+      summary: Update System Admin
+      description: Update a system admin (System Admin only)
+      operationId: updateSystemAdmin
       security:
         - cookieAuth: []
       parameters:
@@ -1953,31 +2077,28 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                department:
-                  type: string
-                role:
-                  type: string
-                  enum: [admin, viewer]
-                isActive:
-                  type: boolean
-                preferences:
-                  $ref: "#/components/schemas/UpdatePreferencesRequest"
+              $ref: "#/components/schemas/UpdateSystemAdminRequest"
       responses:
         "200":
-          description: User updated
+          description: System admin updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/SystemAdminResponse"
         "404":
-          description: User not found
+          description: System admin not found
 
     delete:
       tags:
         - Admin-Users
-      summary: Delete Admin User
-      description: Delete an admin user (requires canManageUsers permission)
-      operationId: deleteUser
+      summary: Delete System Admin
+      description: Delete a system admin (System Admin only)
+      operationId: deleteSystemAdmin
       security:
         - cookieAuth: []
       parameters:
@@ -1988,71 +2109,19 @@ paths:
             type: string
       responses:
         "200":
-          description: User deleted
+          description: System admin deleted
+        "400":
+          description: Cannot delete the last system admin
         "404":
-          description: User not found
-
-  /admin-users/{id}/permissions:
-    put:
-      tags:
-        - Admin-Users
-      summary: Update User Permissions
-      description: Update an admin user's permissions (requires canManageUsers permission)
-      operationId: updatePermissions
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdatePermissionsRequest"
-      responses:
-        "200":
-          description: Permissions updated
-        "404":
-          description: User not found
-
-  /admin-users/{id}/preferences:
-    put:
-      tags:
-        - Admin-Users
-      summary: Update User Preferences
-      description: Update an admin user's preferences (requires authentication)
-      operationId: updatePreferences
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdatePreferencesRequest"
-      responses:
-        "200":
-          description: Preferences updated
-        "404":
-          description: User not found
+          description: System admin not found
 
   /admin-users/{id}/reset-password:
     post:
       tags:
         - Admin-Users
-      summary: Reset User Password
-      description: Reset an admin user's password (requires canManageUsers permission)
-      operationId: resetUserPassword
+      summary: Reset System Admin Password
+      description: Reset a system admin's password (System Admin only)
+      operationId: resetSystemAdminPassword
       security:
         - cookieAuth: []
       parameters:
@@ -2077,4 +2146,4 @@ paths:
                       temporaryPassword:
                         type: string
         "404":
-          description: User not found
+          description: System admin not found

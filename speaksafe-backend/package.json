@@ -5,9 +5,6 @@
   "private": true,
   "main": "dist/server.js",
   "type": "commonjs",
-  "jest": {
-    "testEnvironment": "ts-node"
-  },
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
@@ -20,7 +17,11 @@
     "clean": "rimraf dist coverage logs",
     "type-check": "tsc --noEmit",
     "render-build": "npm install --include=dev && npm run build",
-    "db:migrate:schools": "ts-node scripts/migrate-schools.ts"
+    "seed:test": "ts-node scripts/seed-test-data.ts",
+    "seed:test:prod": "NODE_ENV=production ts-node scripts/seed-test-data.ts",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --ci --coverage --maxWorkers=2"
   },
   "dependencies": {
     "@types/json2csv": "^5.0.7",

@@ -2,27 +2,18 @@ import { ApiError } from "../../core/errors/api.error";
 import { School, ISchool } from "../../core/models/school.model";
 import { Admin } from "../../core/models/admin.model";
 import { hashPassword } from "../../core/utils/bcrypt.util";
-import { generateTokens } from "../../core/utils/jwt.util";
 import EmailService from "../../core/services/email.service";
 
-export interface RegisterSchoolInput {
-  schoolName: string;
-  domain: string;
-  adminEmail: string;
-  adminName: string;
-  adminPassword: string;
-}
-
-export interface InviteAdminInput {
+export interface InviteStaffInput {
   email: string;
   name: string;
-  role: "admin" | "viewer";
   permissions?: Partial<{
     canAssign: boolean;
     canResolve: boolean;
     canViewAll: boolean;
+    canManageStaff: boolean;
     canDelete: boolean;
-    canManageUsers: boolean;
+    canManageSchool: boolean;
   }>;
 }
 
@@ -32,102 +23,6 @@ type SchoolUpdate = Pick<
 >;
 
 export class SchoolService {
-  async registerSchool(data: RegisterSchoolInput) {
-    const { schoolName, domain, adminEmail, adminName, adminPassword } = data;
-
-    // Check if school domain already exists
-    const existingSchool = await School.findOne({
-      domain: domain.toLowerCase(),
-    });
-    if (existingSchool) {
-      throw new ApiError(409, "A school with this domain already exists");
-    }
-
-    // Check if admin email already exists
-    const existingAdmin = await Admin.findOne({
-      email: adminEmail.toLowerCase(),
-    });
-    if (existingAdmin) {
-      throw new ApiError(409, "This email is already registered");
-    }
-
-    // Create school
-    const school = new School({
-      name: schoolName,
-      domain: domain.toLowerCase(),
-      isActive: true,
-      settings: {
-        allowAnonymous: true,
-        requireApproval: true,
-        maxAdmins: 10,
-        retentionDays: 365,
-        allowAttachments: true,
-      },
-      subscription: {
-        plan: "free",
-        features: [],
-      },
-      stats: {
-        totalReports: 0,
-        activeAdmins: 0,
-        resolvedCases: 0,
-        pendingCases: 0,
-      },
-    });
-
-    await school.save();
-
-    // Hash password
-    const passwordHash = await hashPassword(adminPassword);
-
-    // Create super admin
-    const admin = new Admin({
-      email: adminEmail.toLowerCase(),
-      passwordHash,
-      name: adminName,
-      schoolId: school._id,
-      role: "super-admin",
-      department: "Administration",
-      isActive: true,
-      permissions: {
-        canAssign: true,
-        canResolve: true,
-        canViewAll: true,
-        canDelete: true,
-        canManageUsers: true,
-      },
-    });
-
-    await admin.save();
-
-    // Update school stats
-    school.stats.activeAdmins = 1;
-    await school.save();
-
-    // Generate tokens
-    const tokens = generateTokens({
-      adminId: admin._id.toString(),
-      email: admin.email,
-    });
-
-    // Store refresh token
-    admin.refreshToken = tokens.refreshToken;
-    await admin.save();
-
-    // Send welcome email
-    try {
-      await EmailService.sendWelcomeEmail(admin.email, admin.name, "");
-    } catch (error) {
-      console.error("Failed to send welcome email:", error);
-    }
-
-    return {
-      school: this.formatSchool(school),
-      admin: this.formatAdmin(admin),
-      tokens,
-    };
-  }
-
   async getSchoolById(schoolId: string, adminId: string) {
     // Verify admin belongs to this school or is super-admin
     const admin = await Admin.findById(adminId);
@@ -135,7 +30,8 @@ export class SchoolService {
 
     if (
       admin.schoolId.toString() !== schoolId &&
-      admin.role !== "super-admin"
+      admin.role !== "school-admin" &&
+      admin.role !== "system-admin"
     ) {
       throw new ApiError(403, "Access denied to this school");
     }
@@ -156,7 +52,8 @@ export class SchoolService {
 
     if (
       admin.schoolId.toString() !== schoolId &&
-      admin.role !== "super-admin"
+      admin.role !== "school-admin" &&
+      admin.role !== "system-admin"
     ) {
       throw new ApiError(403, "Access denied to this school");
     }
@@ -191,13 +88,14 @@ export class SchoolService {
     return this.formatSchool(school);
   }
 
-  async getSchoolAdmins(schoolId: string, adminId: string) {
+  async getSchoolStaffs(schoolId: string, adminId: string) {
     const admin = await Admin.findById(adminId);
-    if (!admin) throw new ApiError(404, "Admin not found");
+    if (!admin) throw new ApiError(404, "School Admin not found");
 
     if (
       admin.schoolId.toString() !== schoolId &&
-      admin.role !== "super-admin"
+      admin.role !== "school-admin" &&
+      admin.role !== "system-admin"
     ) {
       throw new ApiError(403, "Access denied to this school");
     }
@@ -209,83 +107,77 @@ export class SchoolService {
     return admins.map((a) => this.formatAdmin(a));
   }
 
-  async inviteAdmin(schoolId: string, adminId: string, data: InviteAdminInput) {
+  async inviteStaff(schoolId: string, adminId: string, data: InviteStaffInput) {
+    // Verify admin has permission (school-admin or system-admin)
     const admin = await Admin.findById(adminId);
     if (!admin) throw new ApiError(404, "Admin not found");
 
-    // Check if user has permission to manage users
-    if (!admin.permissions.canManageUsers && admin.role !== "super-admin") {
-      throw new ApiError(403, "Insufficient permissions to invite admins");
+    if (admin.role === "system-admin") {
+      // System admin can create school-admin? Yes, but let's restrict
+      // They should use the registration flow
+      throw new ApiError(403, "Use registration flow for school-admins");
     }
 
-    // Check if admin belongs to this school
-    if (admin.schoolId.toString() !== schoolId) {
-      throw new ApiError(403, "Access denied to this school");
-    }
+    if (admin.role === "school-admin") {
+      // Check if they belong to this school
+      if (admin.schoolId.toString() !== schoolId) {
+        throw new ApiError(403, "Access denied");
+      }
 
-    const school = await School.findById(schoolId);
-    if (!school) throw new ApiError(404, "School not found");
-
-    // Check max admins limit
-    const adminCount = await Admin.countDocuments({ schoolId, isActive: true });
-    if (adminCount >= school.settings.maxAdmins) {
-      throw new ApiError(400, "Maximum admin limit reached for this school");
+      // Check if they have manage staff permission
+      if (!admin.permissions.canManageStaff) {
+        throw new ApiError(403, "Insufficient permissions to invite staff");
+      }
     }
 
     // Check if email already exists
     const existing = await Admin.findOne({ email: data.email.toLowerCase() });
     if (existing) {
-      throw new ApiError(409, "This email is already registered");
+      throw new ApiError(409, "Email already registered");
     }
 
-    // Generate temporary password
+    // Generate temp password
     const tempPassword = this.generateTemporaryPassword();
     const passwordHash = await hashPassword(tempPassword);
 
-    // Create admin
-    const newAdmin = new Admin({
+    // Create school-staff
+    const staff = new Admin({
       email: data.email.toLowerCase(),
       passwordHash,
       name: data.name,
-      schoolId,
-      role: data.role || "admin",
-      department: "Student Affairs",
+      schoolId: schoolId,
+      role: "school-staff", // ← Creates school staff
       isActive: true,
       permissions: {
-        canAssign: data.permissions?.canAssign || false,
-        canResolve: data.permissions?.canResolve || false,
-        canViewAll: data.permissions?.canViewAll || false,
-        canDelete: data.permissions?.canDelete || false,
-        canManageUsers: data.permissions?.canManageUsers || false,
+        canAssign: false, // Staff cannot assign
+        canResolve: data.permissions?.canResolve || true,
+        canViewAll: false, // Staff cannot view all
+        canManageStaff: false,
+        canDelete: false,
+        canManageSchool: false,
       },
     });
 
-    await newAdmin.save();
+    await staff.save();
 
-    // Update school stats
-    school.stats.activeAdmins += 1;
-    await school.save();
+    // Send welcome email with temp password
+    await EmailService.sendWelcomeEmail(staff.email, staff.name, tempPassword);
 
-    // Send welcome email with temporary password
-    try {
-      await EmailService.sendWelcomeEmail(
-        newAdmin.email,
-        newAdmin.name,
-        tempPassword,
-      );
-    } catch (error) {
-      console.error("Failed to send welcome email:", error);
-    }
-
-    return this.formatAdmin(newAdmin);
+    return {
+      id: staff._id,
+      email: staff.email,
+      name: staff.name,
+      role: staff.role,
+      permissions: staff.permissions,
+    };
   }
 
-  async removeAdmin(schoolId: string, adminId: string, targetAdminId: string) {
+  async removeStaff(schoolId: string, adminId: string, targetAdminId: string) {
     const admin = await Admin.findById(adminId);
     if (!admin) throw new ApiError(404, "Admin not found");
 
     // Check if user has permission to manage users
-    if (!admin.permissions.canManageUsers && admin.role !== "super-admin") {
+    if (!admin.permissions.canManageStaff && admin.role !== "school-admin") {
       throw new ApiError(403, "Insufficient permissions");
     }
 
@@ -303,8 +195,8 @@ export class SchoolService {
     if (!targetAdmin) throw new ApiError(404, "Admin not found");
 
     // Cannot remove super-admin
-    if (targetAdmin.role === "super-admin") {
-      throw new ApiError(400, "Cannot remove super-admin");
+    if (targetAdmin.role === "school-admin") {
+      throw new ApiError(400, "Cannot remove school-admin");
     }
 
     // Cannot remove if admin belongs to different school
@@ -331,7 +223,7 @@ export class SchoolService {
 
     if (
       admin.schoolId.toString() !== schoolId &&
-      admin.role !== "super-admin"
+      admin.role !== "school-admin"
     ) {
       throw new ApiError(403, "Access denied to this school");
     }
@@ -340,7 +232,7 @@ export class SchoolService {
     if (!school) throw new ApiError(404, "School not found");
 
     // Get report stats for this school
-    const Report = require("@/core/models/report.model").Report;
+    const Report = require("../../core/models/report.model").Report;
     const [total, resolved, pending] = await Promise.all([
       Report.countDocuments({ schoolId }),
       Report.countDocuments({ schoolId, status: "resolved" }),
@@ -376,7 +268,6 @@ export class SchoolService {
       logo: school.logo,
       isActive: school.isActive,
       settings: school.settings,
-      subscription: school.subscription,
       stats: school.stats,
       createdAt: school.createdAt,
       updatedAt: school.updatedAt,

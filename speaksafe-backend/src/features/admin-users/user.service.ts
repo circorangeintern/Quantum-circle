@@ -6,37 +6,14 @@ import {
   UserResponse,
   GetUsersQuery,
   PaginatedUsersResponse,
-  UpdatePermissionsInput,
-  UpdatePreferencesInput,
-  UserPermissions,
-  UserPreferences,
 } from "./user.types";
 import {
   hashPassword,
   generateTemporaryPassword,
 } from "../../core/utils/bcrypt.util";
-import { Admin } from "../../core/models/admin.model";
 import logger from "../../core/utils/logger.util";
 import EmailService from "../../core/services/email.service";
-
-const DEFAULT_PERMISSIONS: UserPermissions = {
-  canAssign: false,
-  canResolve: false,
-  canViewAll: false,
-  canDelete: false,
-  canManageUsers: false,
-};
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  notifications: {
-    newReports: true,
-    urgentCases: true,
-    weeklySummary: false,
-    assignments: true,
-  },
-  emailDigest: false,
-  dashboardView: "list",
-};
+import { IAdmin } from "../../core/models/admin.model";
 
 export class UserService {
   private repository: UserRepository;
@@ -45,10 +22,17 @@ export class UserService {
     this.repository = new UserRepository();
   }
 
+  // ONLY system-admins can be created here
   async createUser(
     data: CreateUserInput,
     createdBy: string,
   ): Promise<UserResponse> {
+    // Verify creator is system-admin
+    const creator = await this.repository.findById(createdBy);
+    if (!creator || creator.role !== "system-admin") {
+      throw new ApiError(403, "Only system-admins can create system-admins");
+    }
+
     // Check if email already exists
     const existing = await this.repository.findByEmail(data.email);
     if (existing) {
@@ -59,15 +43,13 @@ export class UserService {
     const tempPassword = generateTemporaryPassword();
     const passwordHash = await hashPassword(tempPassword);
 
-    const userData: any = {
+    // Only system-admin role allowed
+    const userData: Partial<IAdmin> = {
       email: data.email.toLowerCase(),
       passwordHash,
       name: data.name,
-      role: data.role || "admin",
-      department: data.department || "Student Affairs",
-      isActive: true,
-      permissions: data.permissions || DEFAULT_PERMISSIONS,
-      preferences: DEFAULT_PREFERENCES,
+      role: "system-admin",
+      isActive: data.isActive !== undefined ? data.isActive : true,
     };
 
     const user = await this.repository.createUser(userData);
@@ -78,31 +60,14 @@ export class UserService {
       role: user.role,
     });
 
-    logger.info(`New user created: ${user.email} by ${createdBy}`);
+    logger.info(`New system-admin created: ${user.email} by ${createdBy}`);
 
-    // Send welcome email with temporal password
+    // Send welcome email
     try {
       await EmailService.sendWelcomeEmail(user.email, user.name, tempPassword);
     } catch (error: any) {
       console.error("Failed to send welcome email:", error);
-
-      await this.repository.logUserAction(
-        "user_temporal_password_failed",
-        user.id,
-        undefined,
-        { userEmail: user.email, error: error.message },
-      );
     }
-
-    await this.repository.logUserAction(
-      "user_temporal_password",
-      user.id,
-      undefined,
-      {
-        userEmail: user.email,
-        exists: true,
-      },
-    );
 
     return this.formatUser(user);
   }
@@ -130,9 +95,10 @@ export class UserService {
   }
 
   async getUserById(userId: string): Promise<UserResponse> {
-    const user = await this.repository.findById(userId);
+    // Only return if it's a system-admin
+    const user = await this.repository.findSystemAdminById(userId);
     if (!user) {
-      throw new ApiError(404, "User not found");
+      throw new ApiError(404, "System admin not found");
     }
     return this.formatUser(user);
   }
@@ -142,42 +108,20 @@ export class UserService {
     data: UpdateUserInput,
     updatedBy: string,
   ): Promise<UserResponse> {
-    const user = await this.repository.findByIdWithPassword(userId);
+    // Verify user is a system-admin
+    const user = await this.repository.findSystemAdminById(userId);
     if (!user) {
-      throw new ApiError(404, "User not found");
+      throw new ApiError(404, "System admin not found");
     }
 
-    // Don't allow changing own role/permissions
+    // Don't allow changing own account
     if (updatedBy === userId) {
-      const disallowedFields = ["role", "permissions", "isActive"];
-      const attemptedChange = Object.keys(data).some((key) =>
-        disallowedFields.includes(key),
-      );
-      if (attemptedChange) {
-        throw new ApiError(
-          403,
-          "Cannot change your own role, permissions, or active status",
-        );
-      }
+      throw new ApiError(403, "Cannot modify your own system-admin account");
     }
 
     const updateData: any = {};
     if (data.name) updateData.name = data.name;
-    if (data.department) updateData.department = data.department;
-    if (data.role) updateData.role = data.role;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
-    if (data.permissions) {
-      updateData.permissions = {
-        ...user.permissions,
-        ...data.permissions,
-      };
-    }
-    if (data.preferences) {
-      updateData.preferences = {
-        ...user.preferences,
-        ...data.preferences,
-      };
-    }
 
     const updated = await this.repository.updateUser(userId, updateData);
     if (!updated) {
@@ -189,79 +133,7 @@ export class UserService {
       changes: data,
     });
 
-    logger.info(`User updated: ${user.email} by ${updatedBy}`);
-
-    return this.formatUser(updated);
-  }
-
-  async updatePermissions(
-    userId: string,
-    permissions: UpdatePermissionsInput,
-    updatedBy: string,
-  ): Promise<UserResponse> {
-    const user = await this.repository.findByIdWithPassword(userId);
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-
-    // Don't allow changing own permissions
-    if (updatedBy === userId) {
-      throw new ApiError(403, "Cannot change your own permissions");
-    }
-
-    // Super-admin always has all permissions
-    if (user.role === "super-admin") {
-      throw new ApiError(400, "Super-admin permissions cannot be modified");
-    }
-
-    const updated = await this.repository.updateUser(userId, {
-      permissions: {
-        ...user.permissions,
-        ...permissions,
-      },
-    });
-
-    if (!updated) {
-      throw new ApiError(500, "Failed to update permissions");
-    }
-
-    // Log action
-    await this.repository.logUserAction(
-      "permissions_updated",
-      updatedBy,
-      userId,
-      { permissions },
-    );
-
-    logger.info(`Permissions updated for ${user.email} by ${updatedBy}`);
-
-    return this.formatUser(updated);
-  }
-
-  async updatePreferences(
-    userId: string,
-    preferences: UpdatePreferencesInput,
-  ): Promise<UserResponse> {
-    const user = await this.repository.findByIdWithPassword(userId);
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-
-    const updated = await this.repository.updateUser(userId, {
-      preferences: {
-        notifications: {
-          ...user.preferences.notifications,
-          ...preferences.notifications,
-        },
-        emailDigest: preferences.emailDigest ?? user.preferences.emailDigest,
-        dashboardView:
-          preferences.dashboardView ?? user.preferences.dashboardView,
-      },
-    });
-
-    if (!updated) {
-      throw new ApiError(500, "Failed to update preferences");
-    }
+    logger.info(`System-admin updated: ${user.email} by ${updatedBy}`);
 
     return this.formatUser(updated);
   }
@@ -269,20 +141,19 @@ export class UserService {
   async deleteUser(userId: string, deletedBy: string): Promise<void> {
     // Don't allow deleting self
     if (userId === deletedBy) {
-      throw new ApiError(403, "Cannot delete your own account");
+      throw new ApiError(403, "Cannot delete your own system-admin account");
     }
 
-    const user = await this.repository.findByIdWithPassword(userId);
+    // Verify user is a system-admin
+    const user = await this.repository.findSystemAdminById(userId);
     if (!user) {
-      throw new ApiError(404, "User not found");
+      throw new ApiError(404, "System admin not found");
     }
 
-    // Don't allow deleting super-admin
-    if (user.role === "super-admin") {
-      const superAdmins = await Admin.countDocuments({ role: "super-admin" });
-      if (superAdmins <= 1) {
-        throw new ApiError(400, "Cannot delete the last super-admin");
-      }
+    // Prevent deleting the last system-admin
+    const count = await this.repository.getSystemAdminCount();
+    if (count <= 1) {
+      throw new ApiError(400, "Cannot delete the last system-admin");
     }
 
     const deleted = await this.repository.deleteUser(userId);
@@ -295,13 +166,14 @@ export class UserService {
       email: user.email,
     });
 
-    logger.info(`User deleted: ${user.email} by ${deletedBy}`);
+    logger.info(`System-admin deleted: ${user.email} by ${deletedBy}`);
   }
 
   async resetPassword(userId: string, resetBy: string): Promise<string> {
-    const user = await this.repository.findByIdWithPassword(userId);
+    // Verify user is a system-admin
+    const user = await this.repository.findSystemAdminById(userId);
     if (!user) {
-      throw new ApiError(404, "User not found");
+      throw new ApiError(404, "System admin not found");
     }
 
     // Generate new temporary password
@@ -315,39 +187,21 @@ export class UserService {
       "password_reset_requested",
       resetBy,
       userId,
-      {
-        email: user.email,
-      },
+      { email: user.email },
     );
 
-    logger.info(`Password reset for ${user.email} by ${resetBy}`);
+    logger.info(`Password reset for system-admin: ${user.email} by ${resetBy}`);
 
-    // Send reset email with token
+    // Send reset email
     try {
       await EmailService.sendPasswordResetEmail(
         user.email,
         user.name,
-        passwordHash,
+        tempPassword,
       );
     } catch (error: any) {
       console.error("Failed to send password reset email:", error);
-      await this.repository.logUserAction(
-        "password_reset_email_failed",
-        user.id,
-        undefined,
-        { userEmail: user.email, error: error.message },
-      );
     }
-
-    await this.repository.logUserAction(
-      "password_reset_requested",
-      user.id,
-      undefined,
-      {
-        userEmail: user.email,
-        exists: true,
-      },
-    );
 
     return tempPassword;
   }
@@ -356,22 +210,14 @@ export class UserService {
     return this.repository.getUsersStats();
   }
 
-  async getAvailableAdmins(): Promise<UserResponse[]> {
-    const admins = await this.repository.findActiveAdmins();
-    return admins.map((u) => this.formatUser(u));
-  }
-
   private formatUser(user: any): UserResponse {
     return {
       id: user._id.toString(),
       email: user.email,
       name: user.name,
-      role: user.role,
-      department: user.department || "Student Affairs",
+      role: "system-admin",
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,
-      permissions: user.permissions || DEFAULT_PERMISSIONS,
-      preferences: user.preferences || DEFAULT_PREFERENCES,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

@@ -82,8 +82,8 @@ export class AuthRepository {
 
     if (!admin) return null;
 
-    // Super-admin has all permissions
-    if (admin.role === "super-admin") {
+    // System-admin has all permissions
+    if (admin.role === "system-admin") {
       return {
         canAssign: true,
         canResolve: true,

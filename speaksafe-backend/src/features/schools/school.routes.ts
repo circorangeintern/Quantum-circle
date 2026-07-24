@@ -2,22 +2,10 @@ import { Router } from "express";
 import { SchoolController } from "./school.controller";
 import { authenticate, requirePermission } from "../auth/auth.middleware";
 import { validate } from "../../core/middlewares/validate.middleware";
-import {
-  registerSchoolSchema,
-  updateSchoolSchema,
-  inviteAdminSchema,
-} from "./school.validators";
+import { updateSchoolSchema, inviteStaffSchema } from "./school.validators";
 
 const router = Router();
 const controller = new SchoolController();
-
-// ==================== PUBLIC ROUTES ====================
-// Register a new school (creates first super admin)
-router.post(
-  "/register",
-  validate(registerSchoolSchema),
-  controller.registerSchool.bind(controller),
-);
 
 // ==================== PROTECTED ROUTES ====================
 // Get school details
@@ -32,28 +20,28 @@ router.put(
   controller.updateSchool.bind(controller),
 );
 
-// Get school admins
+// Get school staff
 router.get(
-  "/:id/admins",
+  "/:id/staffs",
   authenticate,
-  controller.getSchoolAdmins.bind(controller),
+  controller.getSchoolStaffs.bind(controller),
 );
 
-// Invite new admin
+// Invite new staff member
 router.post(
   "/:id/invite",
   authenticate,
   requirePermission("canManageUsers"),
-  validate(inviteAdminSchema),
-  controller.inviteAdmin.bind(controller),
+  validate(inviteStaffSchema),
+  controller.inviteStaff.bind(controller),
 );
 
-// Remove admin
+// Remove staff member
 router.delete(
-  "/:id/admins/:adminId",
+  "/:id/staffs/:staffId",
   authenticate,
   requirePermission("canManageUsers"),
-  controller.removeAdmin.bind(controller),
+  controller.removeStaff.bind(controller),
 );
 
 // Get school stats

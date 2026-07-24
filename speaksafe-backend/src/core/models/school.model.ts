@@ -12,19 +12,12 @@ export interface ISchool extends Document {
   isActive: boolean;
   settings: {
     allowAnonymous: boolean;
-    requireApproval: boolean;
-    maxAdmins: number;
-    retentionDays: number;
     allowAttachments: boolean;
-  };
-  subscription: {
-    plan: "free" | "basic" | "premium" | "enterprise";
-    expiryDate?: Date;
-    features: string[];
+    retentionDays: number;
   };
   stats: {
     totalReports: number;
-    activeAdmins: number;
+    activeAdmins: number; // school-admin + school-staff
     resolvedCases: number;
     pendingCases: number;
   };
@@ -46,29 +39,12 @@ const SchoolSchema = new Schema<ISchool>(
       unique: true,
       trim: true,
       lowercase: true,
-      description: "Email domain for school (e.g., stmarys.edu)",
     },
-    address: {
-      type: String,
-      trim: true,
-    },
-    phone: {
-      type: String,
-      trim: true,
-    },
-    email: {
-      type: String,
-      trim: true,
-      lowercase: true,
-    },
-    website: {
-      type: String,
-      trim: true,
-    },
-    logo: {
-      type: String,
-      trim: true,
-    },
+    address: String,
+    phone: String,
+    email: String,
+    website: String,
+    logo: String,
     isActive: {
       type: Boolean,
       default: true,
@@ -78,33 +54,13 @@ const SchoolSchema = new Schema<ISchool>(
         type: Boolean,
         default: true,
       },
-      requireApproval: {
-        type: Boolean,
-        default: true,
-      },
-      maxAdmins: {
-        type: Number,
-        default: 10,
-      },
-      retentionDays: {
-        type: Number,
-        default: 365,
-      },
       allowAttachments: {
         type: Boolean,
         default: true,
       },
-    },
-    subscription: {
-      plan: {
-        type: String,
-        enum: ["free", "basic", "premium", "enterprise"],
-        default: "free",
-      },
-      expiryDate: Date,
-      features: {
-        type: [String],
-        default: [],
+      retentionDays: {
+        type: Number,
+        default: 365,
       },
     },
     stats: {
@@ -128,25 +84,10 @@ const SchoolSchema = new Schema<ISchool>(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   },
 );
 
-// Indexes
 SchoolSchema.index({ domain: 1 });
-SchoolSchema.index({ name: 1 });
 SchoolSchema.index({ isActive: 1 });
-
-// Pre-save hook to update stats
-SchoolSchema.pre("save", function () {
-  if (
-    this.subscription.expiryDate &&
-    this.subscription.expiryDate < new Date()
-  ) {
-    this.subscription.plan = "free";
-    this.subscription.features = [];
-  }
-});
 
 export const School = mongoose.model<ISchool>("School", SchoolSchema);

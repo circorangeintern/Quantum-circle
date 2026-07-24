@@ -8,16 +8,23 @@ export interface LoginResponse {
     id: string;
     email: string;
     name: string;
-    role: string;
-    department: string;
-    permissions: UserPermissions;
-    preferences: UserPreferences;
+    role: "system-admin" | "school-admin" | "school-staff";
+    isActive: boolean;
+    permissions: {
+      canAssign: boolean;
+      canResolve: boolean;
+      canViewAll: boolean;
+      canManageStaff: boolean;
+      canDelete: boolean;
+      canManageSchool: boolean;
+    };
+    preferences: any;
   };
-  school: {
+  school?: {
     id: string;
     name: string;
     domain: string;
-    settings?: any;
+    settings: any;
   };
   tokens: {
     accessToken: string;

@@ -1,34 +1,5 @@
 import { z } from "zod";
 
-export const registerSchoolSchema = z.object({
-  body: z.object({
-    schoolName: z
-      .string()
-      .min(2, "School name must be at least 2 characters")
-      .max(100, "School name too long"),
-    domain: z
-      .string()
-      .min(2, "Domain must be at least 2 characters")
-      .max(100, "Domain too long")
-      .regex(
-        /^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-        "Invalid domain format",
-      ),
-    adminEmail: z.string().email("Invalid email format"),
-    adminName: z
-      .string()
-      .min(2, "Name must be at least 2 characters")
-      .max(100, "Name too long"),
-    adminPassword: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        "Password must contain at least one uppercase, one lowercase, and one number",
-      ),
-  }),
-});
-
 export const updateSchoolSchema = z.object({
   params: z.object({
     id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid school ID"),
@@ -41,7 +12,7 @@ export const updateSchoolSchema = z.object({
       .optional(),
     address: z.string().max(200, "Address too long").optional(),
     phone: z.string().max(20, "Phone number too long").optional(),
-    email: z.string().email("Invalid email format").optional(),
+    email: z.email("Invalid email format").optional(),
     website: z.string().url("Invalid website URL").optional(),
     logo: z.string().url("Invalid logo URL").optional(),
     settings: z
@@ -56,12 +27,12 @@ export const updateSchoolSchema = z.object({
   }),
 });
 
-export const inviteAdminSchema = z.object({
+export const inviteStaffSchema = z.object({
   params: z.object({
     id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid school ID"),
   }),
   body: z.object({
-    email: z.string().email("Invalid email format"),
+    email: z.email("Invalid email format"),
     name: z
       .string()
       .min(2, "Name must be at least 2 characters")
@@ -85,9 +56,9 @@ export const schoolIdSchema = z.object({
   }),
 });
 
-export const removeAdminSchema = z.object({
+export const removeStaffSchema = z.object({
   params: z.object({
     id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid school ID"),
-    adminId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid admin ID"),
+    staffId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid staff ID"),
   }),
 });

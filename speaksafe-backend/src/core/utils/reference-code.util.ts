@@ -1,16 +1,26 @@
-import { customAlphabet } from "nanoid";
+import { randomBytes } from "crypto";
 
 // Use unambiguous characters (no 0, O, I, l, etc.)
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const nanoid = customAlphabet(alphabet, 8);
+
+/**
+ * Natively generates a secure unique key mapping characters
+ */
+function nativeCustomAlphabet(length: number): string {
+  const bytes = randomBytes(length);
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += alphabet[bytes[i] % alphabet.length];
+  }
+  return result;
+}
 
 /**
  * Generates a unique reference code for reports
  * Format: XXXX-XXXX (e.g., "AB3D-KL9M")
- * Collision probability: ~1 in 2.8 trillion
  */
 export function generateReferenceCode(): string {
-  const raw = nanoid();
+  const raw = nativeCustomAlphabet(8);
   return `${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
 }
 
@@ -31,7 +41,6 @@ export function normalizeReferenceCode(code: string): string {
 
 /**
  * Generates a masked reference code for dashboard display
- * Example: "AB3D-KL9M" -> "AB3D-****"
  */
 export function maskReferenceCode(code: string): string {
   const cleanCode = normalizeReferenceCode(code);
