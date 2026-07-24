@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --navy: #142353;
+  --navy-light: #1f3169;
+  --blue: #4d68af;
+  --blue-dark: #374b80;
+  --peri: #678be7;
+  --peri-light: #eaf0fd;
+  --paper: #f5f7fc;
+  --navtext: #ffffffad;
+  --nav-border: #ffffff2e;
+  --card: #ffffff;
+  --border: #e1e7f5;
+  --border-strong: #cbd5ee;
+  --text: #1b2540;
+  --text-muted: #5b6b8c;
+  --text-faint: #93a0bd;
+  --green: #2f9e68;
+  --green-light: #def3e7;
+  --amber: #c98a1e;
+  --amber-light: #fbeacb;
+  --orange: #dd7a2e;
+  --orange-light: #fce3ce;
+  --red: #dd4b4b;
+  --red-light: #fbe0e0;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+@theme {
+  --color-navy: var(--navy);
+  --color-navy-light: var(--navy-light);
+  --color-blue: var(--blue);
+  --color-blue-dark: var(--blue-dark);
+  --color-peri: var(--peri);
+  --color-peri-light: var(--peri-light);
+  --color-paper: var(--paper);
+  --color-navtext: var(--navtext);
+  --color-nav-border: var(--nav-border);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-green: var(--green);
+  --color-green-light: var(--green-light);
+  --color-amber: var(--amber);
+  --color-amber-light: var(--amber-light);
+  --color-orange: var(--orange);
+  --color-orange-light: var(--orange-light);
+  --color-red: var(--red);
+  --color-red-light: var(--red-light);
+
+  --radius-card: var(--radius);
+  --radius-card-sm: var(--radius-sm);
+}
