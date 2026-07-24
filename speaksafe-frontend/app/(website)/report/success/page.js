@@ -1,18 +1,18 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, Copy } from "lucide-react";
 import { toast } from "sonner";
 
-const SuccessPage = () => {
+function SuccessContent() {
   const searchParams = useSearchParams();
-
   const trackingId = searchParams.get("ref");
 
   const copyTrackingId = async () => {
     try {
-      await navigator.clipboard.writeText(trackingId);
+      await navigator.clipboard.writeText(trackingId ?? "");
 
       toast.success("Tracking ID copied!");
     } catch {
@@ -66,6 +66,12 @@ const SuccessPage = () => {
       </div>
     </main>
   );
-};
+}
 
-export default SuccessPage;
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SuccessContent />
+    </Suspense>
+  );
+}
