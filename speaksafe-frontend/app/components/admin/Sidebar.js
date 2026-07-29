@@ -1,18 +1,21 @@
 "use client";
 import { useAdmin } from "@/lib/admin/AdminContext";
+import { useAuth } from "@/app/providers/AuthProvider";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 
 const links = [
   { href: "/admin/overview", label: "Overview" },
-  { href: "/admin/requests", label: "Authority Requests" },
-  { href: "/admin/authorities", label: "All Authorities" },
+  { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/authorities", label: "Authorities" },
+  { href: "/admin/settings", label: "School Settings" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen } = useAdmin();
+  const { logout } = useAuth();
 
   return (
     <>
@@ -36,7 +39,7 @@ export function Sidebar() {
           <span className="text-white font-display font-semibold">SpeakSafe</span>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-white/60 hover:text-white"
+            className="lg:hidden text-white/60 hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Close menu"
           >
             ✕
@@ -58,9 +61,12 @@ export function Sidebar() {
           </Link>
         ))}
         <div className="flex-1" />
-        <Link href="/" className="px-3.5 py-2.5 text-white/45 text-[13.5px] font-semibold">
+        <button
+          onClick={logout}
+          className="px-3.5 py-2.5 text-white/45 text-[13.5px] font-semibold text-left hover:text-white/70"
+        >
           Logout
-        </Link>
+        </button>
       </aside>
     </>
   );

@@ -4,7 +4,7 @@ import React from "react";
 const Footer = () => {
   return (
     <div className="bg-(--navy)">
-      <div className=" grid grid-cols-2 lg:grid-cols-4 gap-15 mx-auto px-5 pt-10 pb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mx-auto px-5 pt-10 pb-8">
         <div>
           <div className="flex items-center gap-3">
             <Image
@@ -41,8 +41,8 @@ const Footer = () => {
 
       <hr className="text-(--text-muted) w-[95%] mx-auto" />
 
-      <footer className="text-(--text-muted) px-5 py-10">
-        © 2026 SpeakSafe. Built for safer schools everywhere.
+      <footer className="text-(--text-muted) flex flex-col sm:flex-row items-center justify-between px-5 py-6">
+        <span>© 2026 SpeakSafe. Built for safer schools everywhere.</span>
       </footer>
     </div>
   );

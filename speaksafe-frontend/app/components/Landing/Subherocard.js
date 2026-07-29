@@ -5,8 +5,8 @@ const Subherocard = ({ icon, title, description }) => {
     <div>
       <div className="flex flex-col gap-2 bg-white rounded-lg p-6 h-[180px] lg:h-[200px]">
         <div className="">{icon}</div>
-        <h1 className="text-(--navy) font-bold md:text-lg">{title}</h1>
-        <p className="text-(--text-muted) text-[15px] ">{description}</p>
+        <h1 className="text-(--navy) font-bold text-xs md:text-lg">{title}</h1>
+        <p className="text-(--text-muted) text-[10px] md:text-[15px] ">{description}</p>
       </div>
     </div>
   );

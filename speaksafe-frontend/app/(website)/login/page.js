@@ -2,7 +2,7 @@
 import { loginUser } from "@/app/lib/auth";
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { saveAuth } from "@/app/lib/authStorage";
 import { useAuth } from "@/app/providers/AuthProvider";
 
 export default function LoginForm() {
   const router = useRouter();
-  // const { setUser } = useAuth();
+  const { login } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -35,69 +34,45 @@ export default function LoginForm() {
     }));
   };
 
-  // const handleSubmit = async (e) => {
-  //   e.preventDefault();
-
-  //   setError("");
-  //   setLoading(true);
-
-  //   try {
-  //     const response = await loginUser(formData.email, formData.password);
-
-  //     const { admin, school, tokens } = response.data;
-
-  //     // Store authentication
-  //     saveAuth({ admin, school, tokens });
-  //     setUser(admin);
-
-  //     toast.success("Login successful!");
-  //     // Redirect based on role
-  //     if (admin.role === "super-admin") {
-  //       router.replace("/admin");
-  //     } else {
-  //       router.replace("/dashboard");
-  //     }
-  //   } catch (err) {
-  //     setError(err.response?.data?.message || "Invalid email or password.");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  const admin = {
-    id: 1,
-    name: "Development Admin",
-    email: "admin@test.com",
-    role: "admin", // Change to "admin" to test dashboard
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await loginUser(formData.email, formData.password);
+
+      const { admin, school, tokens } = response.data?.result ?? response.data;
+
+      // Store authentication and update AuthProvider state
+      login(admin, school, tokens);
+
+      toast.success("Login successful!");
+
+      // Redirect based on role
+      if (admin.role === "system-admin") {
+        router.replace("/superadmin/overview");
+      } else if (admin.role === "school-admin") {
+        router.replace("/admin/overview");
+      } else {
+        // school-staff
+        router.replace("/authority/dashboard");
+      }
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Invalid email or password.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const school = {
-    id: 1,
-    name: "Test School",
-  };
-
-  const tokens = {
-    access: "fake-access-token",
-    refresh: "fake-refresh-token",
-  };
-
-  saveAuth({ admin, school, tokens });
-  // setUser(admin);
-
-  toast.success("Development login");
-
-  if (admin.role === "super-admin") {
-    router.replace("/admin");
-  } else {
-    router.replace("/authority/dashboard");
-  }
-};
 
   return (
     <section className="min-h-screen bg-slate-100 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl p-8">
+      <div className="w-full max-w-sm mx-auto rounded-2xl bg-white shadow-xl p-8">
         {/* Header */}
         <div className="text-center space-y-3">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-(--navy)">
@@ -131,6 +106,7 @@ export default function LoginForm() {
               placeholder="you@school.edu"
               value={formData.email}
               onChange={handleChange}
+              className="w-full"
               required
             />
           </div>
@@ -152,7 +128,7 @@ export default function LoginForm() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
-                className="pr-10"
+                className="w-full pr-10"
                 value={formData.password}
                 onChange={handleChange}
                 required
@@ -162,24 +138,30 @@ export default function LoginForm() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-[#142353]"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && (
+              <p className="text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            )}
           </div>
 
           <Button
             type="submit"
             disabled={loading}
-            className="w-full p-6 text-white bg-[#142353] hover:bg-[#0d1a42]"
+            className="w-full p-6 text-white bg-[#142353] hover:bg-[#0d1a42] flex items-center justify-center"
           >
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {loading ? "Signing In..." : "Sign In"}
           </Button>
 
           <p className="text-center text-sm text-slate-600">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/register-school"
               className="font-semibold text-[#142353] hover:underline"
@@ -191,9 +173,9 @@ export default function LoginForm() {
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm text-slate-600">
               Only authorized SpeakSafe users can sign in. If your school has
-              not yet registered, register your school first. If you've been
-              invited as an administrator or viewer, check your email for your
-              login credentials.
+              not yet registered, register your school first. If you&apos;ve
+              been invited as an administrator or viewer, check your email for
+              your login credentials.
             </p>
           </div>
         </form>

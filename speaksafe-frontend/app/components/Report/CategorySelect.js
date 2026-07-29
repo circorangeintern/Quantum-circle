@@ -1,14 +1,11 @@
 const categories = [
-  "Bullying",
-  "Harassment",
-  "Sexual Misconduct",
-  "Discrimination",
-  "Physical Assault",
-  "Academic Misconduct",
-  "Theft",
-  "Vandalism",
-  "Drug Abuse",
-  "Other",
+  { value: "bullying", label: "Bullying" },
+  { value: "harassment", label: "Harassment" },
+  { value: "violence", label: "Violence" },
+  { value: "discrimination", label: "Discrimination" },
+  { value: "mental-health", label: "Mental Health" },
+  { value: "safety-hazard", label: "Safety Hazard" },
+  { value: "other", label: "Other" },
 ];
 
 const CategorySelect = ({ register, error }) => {
@@ -31,9 +28,9 @@ const CategorySelect = ({ register, error }) => {
           Select a category
         </option>
 
-        {categories.map((category) => (
-          <option key={category} value={category}>
-            {category}
+        {categories.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
           </option>
         ))}
       </select>
