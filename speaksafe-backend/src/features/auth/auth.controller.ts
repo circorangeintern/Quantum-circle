@@ -43,7 +43,7 @@ export class AuthController {
       ApiResponse.success(
         res,
         {
-          admin: result.admin,
+          result
         },
         "Login successful",
       );
