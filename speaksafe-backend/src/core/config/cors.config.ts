@@ -13,7 +13,10 @@ export const corsOptions: CorsOptions = {
     if (!origin) return callback(null, true);
 
     if (isProduction) {
-      if (origin.match(/^https:\/\//)) {
+      if (
+        origin.match(/^https:\/\//) ||
+        origin.match(/^https?:\/\/localhost:\d+$/)
+      ) {
         // if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
