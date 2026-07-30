@@ -31,9 +31,18 @@ const envSchema = z.object({
 
   // Brevo Email
   BREVO_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.email().default("noreply@speaksafe.com"),
+  EMAIL_FROM: z.email().default("circoquantumcircle@gmail.com"),
   EMAIL_FROM_NAME: z.string().default("SpeakSafe"),
-  APP_URL: z.string().url().default("https://speaksafe.com"),
+  APP_URL: z.url().default("https://speaksafe-puzj.onrender.com"),
+  WEBSITE_URL: z.url().default("https://speaksafe-t6ko.onrender.com"),
+
+  // SendGrid Email
+  SENDGRID_API_KEY: z.string().optional(),
+  COMPANY_LOGO_URL: z
+    .string()
+    .default(
+      "https://res.cloudinary.com/arlksjrh/image/upload/v1785392817/speaksafe-logo_ili6ey.png",
+    ),
 
   // Admin
   ADMIN_EMAIL: z.email(),

@@ -9,6 +9,7 @@ import { errorHandler } from "./core/middlewares/error-handler.middleware";
 import { standardLimiter } from "./core/config/rate-limit.config";
 import api from "./routes/api.route";
 import path from "path";
+import { env } from "./core/config/env.config";
 
 const app = express();
 
@@ -63,6 +64,40 @@ app.get("/docs", (_req, res) => {
 
 // API routes
 app.use("/api/v1", api);
+
+// ===== Email Page Routes =====
+app.get("/reset-password", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/reset-password.html"));
+});
+
+app.get("/registration-success", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/registration-success.html"));
+});
+
+app.get("/registration-pending", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/registration-pending.html"));
+});
+
+// ===== Report Status Pages =====
+// ===== Report View Pages =====
+app.get("/report-view", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/report-view.html"));
+});
+
+app.get("/report-confirmation", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/report-confirmation.html"));
+});
+
+app.get("/status", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/status.html"));
+});
+
+// ===== Home Route =====
+if (env.NODE_ENV === "development") {
+  app.get("/", (_req, res) => {
+    res.sendFile(path.join(__dirname, "../public/index.html"));
+  });
+}
 
 // 404 handler
 app.use((_req, res) => {

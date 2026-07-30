@@ -27,6 +27,8 @@ import NotificationService from "../../core/services/notification.service";
 import EmailService from "../../core/services/email.service";
 import { Types } from "mongoose";
 import { generateCSV, generatePDF } from "../../core/utils/export.util";
+import { School } from "../../core/models/school.model";
+import logger from "../../core/utils/logger.util";
 
 export class ReportService {
   private repository: ReportRepository;
@@ -61,6 +63,41 @@ export class ReportService {
       }
     }
 
+    // ===== HANDLE SCHOOL ID =====
+    let finalSchoolId = schoolId;
+
+    // If no schoolId provided, randomly pick an active school
+    if (!finalSchoolId) {
+      // For MVP: Get all active schools
+      const activeSchools = await School.find({ isActive: true }).select("_id");
+
+      if (activeSchools.length === 0) {
+        throw new ApiError(
+          500,
+          "No active schools available. Please contact support.",
+        );
+      }
+
+      // Pick a random school
+      const randomIndex = Math.floor(Math.random() * activeSchools.length);
+      finalSchoolId = activeSchools[randomIndex].id;
+
+      // Log this for debugging
+      logger.info(
+        `Report ${title} assigned to random school: ${finalSchoolId}`,
+      );
+    } else {
+      // Verify the provided school exists and is active
+      const school = await School.findOne({
+        _id: finalSchoolId,
+        isActive: true,
+      });
+
+      if (!school) {
+        throw new ApiError(404, "School not found or inactive");
+      }
+    }
+
     // Generate reference code
     let referenceCode = generateReferenceCode();
     let isUnique = false;
@@ -86,7 +123,7 @@ export class ReportService {
       title,
       description,
       referenceCode,
-      schoolId,
+      schoolId: finalSchoolId, // Use the determined schoolId
       status: "new",
       urgency: "medium",
       reporterIdentity: {

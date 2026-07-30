@@ -1,37 +1,37 @@
 import axios from "axios";
 import { env } from "../config/env.config";
 import logger from "../utils/logger.util";
-import { ReportViewToken } from "../models/report-view-token.model";
-import { randomBytes } from "crypto";
 
 export interface EmailOptions {
   to: string | string[];
   subject: string;
   html?: string;
   text?: string;
-  templateId?: string;
+  templateId?: number;
   params?: Record<string, any>;
   attachments?: Array<{
     name: string;
-    content: string; // Base64 encoded for SendGrid
+    content: string;
     contentType?: string;
   }>;
 }
 
+export interface EmailTemplate {
+  id: number;
+  name: string;
+  subject: string;
+  htmlContent: string;
+}
+
 class EmailService {
   private apiKey: string;
-  private apiUrl = "https://api.sendgrid.com/v3";
-  private logoUrl: string;
+  private apiUrl = "https://api.brevo.com/v3";
 
   constructor() {
-    this.apiKey = env.SENDGRID_API_KEY || "";
-    this.logoUrl =
-      env.COMPANY_LOGO_URL ||
-      "https://res.cloudinary.com/arlksjrh/image/upload/v1785392817/speaksafe-logo_ili6ey.png";
-
+    this.apiKey = env.BREVO_API_KEY || "";
     if (!this.apiKey) {
       logger.warn(
-        "SendGrid API key not configured. Email service will be disabled.",
+        "Brevo API key not configured. Email service will be disabled.",
       );
     }
   }
@@ -39,96 +39,62 @@ class EmailService {
   private getHeaders() {
     return {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${this.apiKey}`,
+      "api-key": this.apiKey,
+      Accept: "application/json",
     };
   }
 
-  private getLogoHeaderHtml(): string {
-    if (!this.logoUrl) return "";
-    return `
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${this.logoUrl}" alt="SpeakSafe Logo" style="max-height: 50px; width: auto;" />
-      </div>
-    `;
-  }
-
-  /**
-   * Generate a unique token for one-time report view
-   */
-  private async generateReportViewToken(reportId: string): Promise<string> {
-    // Generate a secure random token
-    const token = randomBytes(32).toString("hex");
-
-    // Set expiry to 7 days from now
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-    // Save to database
-    await ReportViewToken.create({
-      reportId,
-      token,
-      viewed: false,
-      expiresAt,
-    });
-
-    return token;
-  }
-
-  // ==================== SEND EMAIL METHODS ====================
-
   async sendEmail(options: EmailOptions): Promise<any> {
     if (!this.apiKey) {
-      logger.warn("Email not sent: SendGrid API key not configured");
+      logger.warn("Email not sent: Brevo API key not configured");
       return { success: false, error: "Email service not configured" };
     }
 
     try {
-      const toAddresses = Array.isArray(options.to) ? options.to : [options.to];
-
       const payload: any = {
-        personalizations: [
-          {
-            to: toAddresses.map((email) => ({ email })),
-          },
-        ],
-        from: {
+        sender: {
           name: env.EMAIL_FROM_NAME || "SpeakSafe",
           email: env.EMAIL_FROM || "noreply@speaksafe.com",
         },
+        to: Array.isArray(options.to)
+          ? options.to.map((email) => ({ email }))
+          : [{ email: options.to }],
         subject: options.subject,
-        content: [],
       };
 
+      if (options.html) {
+        payload.htmlContent = options.html;
+      }
+
+      if (options.text) {
+        payload.textContent = options.text;
+      }
+
       if (options.templateId) {
-        payload.template_id = options.templateId;
+        payload.templateId = options.templateId;
         if (options.params) {
-          payload.personalizations[0].dynamic_template_data = options.params;
-        }
-      } else {
-        if (options.text) {
-          payload.content.push({ type: "text/plain", value: options.text });
-        }
-        if (options.html) {
-          payload.content.push({ type: "text/html", value: options.html });
+          payload.params = options.params;
         }
       }
 
       if (options.attachments) {
-        payload.attachments = options.attachments.map((att) => ({
-          filename: att.name,
+        payload.attachment = options.attachments.map((att) => ({
+          name: att.name,
           content: att.content,
-          type: att.contentType || "application/octet-stream",
-          disposition: "attachment",
+          contentType: att.contentType || "application/octet-stream",
         }));
       }
 
-      const response = await axios.post(`${this.apiUrl}/mail/send`, payload, {
+      const response = await axios.post(`${this.apiUrl}/smtp/email`, payload, {
         headers: this.getHeaders(),
       });
 
-      logger.info(`Email sent via SendGrid to ${toAddresses.join(", ")}`);
+      logger.info(
+        `Email sent to ${Array.isArray(options.to) ? options.to.join(", ") : options.to}`,
+      );
       return { success: true, data: response.data };
     } catch (error: any) {
-      logger.error("Failed to send email via SendGrid:", {
+      logger.error("Failed to send email:", {
         error: error.message,
         response: error.response?.data,
         to: options.to,
@@ -138,8 +104,34 @@ class EmailService {
     }
   }
 
-  // ==================== TEMPLATED EMAILS ====================
+  // ==================== TEMPLATE MANAGEMENT ====================
+  async createTemplate(templateData: any): Promise<any> {
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/smtp/templates`,
+        templateData,
+        { headers: this.getHeaders() },
+      );
+      return response.data;
+    } catch (error: any) {
+      logger.error("Failed to create template:", error.message);
+      throw error;
+    }
+  }
 
+  async getTemplates(): Promise<any> {
+    try {
+      const response = await axios.get(`${this.apiUrl}/smtp/templates`, {
+        headers: this.getHeaders(),
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error("Failed to get templates:", error.message);
+      throw error;
+    }
+  }
+
+  // ==================== TEMPLATED EMAILS ====================
   async sendWelcomeEmail(
     to: string,
     name: string,
@@ -163,19 +155,23 @@ class EmailService {
       </head>
       <body>
         <div class="container">
-          ${this.getLogoHeaderHtml()}
-          <div class="header"><h1>🎓 Welcome to SpeakSafe</h1></div>
+          <div class="header">
+            <h1>🎓 Welcome to SpeakSafe</h1>
+          </div>
           <div class="content">
             <h2>Hello ${name},</h2>
             <p>Your SpeakSafe authority account has been created. You can now log in to review and manage reports.</p>
+            
             <div class="password-box">
               <p style="margin: 0 0 8px;">Your temporary password:</p>
               <div class="code">${tempPassword}</div>
               <p style="margin: 8px 0 0; font-size: 12px; color: #5B6B8C;">Please change this password after your first login.</p>
             </div>
+            
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${env.WEBSITE_URL || "https://speaksafe.com"}/login" class="btn" style="color: white;">Login to SpeakSafe</a>
+              <a href="${env.APP_URL || "https://speaksafe.com"}/login" class="btn">Login to SpeakSafe</a>
             </div>
+            
             <p><strong>Security Tip:</strong> Never share your password with anyone. SpeakSafe will never ask for your password via email.</p>
           </div>
           <div class="footer">
@@ -218,18 +214,22 @@ class EmailService {
       </head>
       <body>
         <div class="container">
-          ${this.getLogoHeaderHtml()}
-          <div class="header"><h1>🔐 Password Reset Request</h1></div>
+          <div class="header">
+            <h1>🔐 Password Reset Request</h1>
+          </div>
           <div class="content">
             <h2>Hello ${name},</h2>
             <p>We received a request to reset your SpeakSafe password. Click the button below to create a new password:</p>
+            
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" class="btn" style="color: white;">Reset Password</a>
+              <a href="${resetUrl}" class="btn">Reset Password</a>
             </div>
+            
             <div class="warning">
               <p style="margin: 0; font-weight: bold;">⚠️ This link expires in 1 hour</p>
               <p style="margin: 4px 0 0; font-size: 13px;">If you didn't request this, please ignore this email.</p>
             </div>
+            
             <p style="font-size: 13px;">Alternatively, copy this link into your browser:</p>
             <p style="font-size: 13px; color: #4D68AF; word-break: break-all;">${resetUrl}</p>
           </div>
@@ -253,7 +253,7 @@ class EmailService {
     to: string,
     referenceCode: string,
   ): Promise<any> {
-    const checkUrl = `${env.APP_URL || "https://speaksafe.com"}/report-confirmation?ref=${referenceCode}`;
+    const checkUrl = `${env.APP_URL || "https://speaksafe.com"}/status/${referenceCode}`;
 
     const html = `
       <!DOCTYPE html>
@@ -273,18 +273,22 @@ class EmailService {
       </head>
       <body>
         <div class="container">
-          ${this.getLogoHeaderHtml()}
-          <div class="header"><h1>✅ Report Received</h1></div>
+          <div class="header">
+            <h1>✅ Report Received</h1>
+          </div>
           <div class="content">
             <h2>Thank you for speaking up.</h2>
             <p>Your report has been submitted and will be reviewed by a school authority. Keep your tracking code safe — it's the only way to check your report's status.</p>
+            
             <div class="code-box">
               <p style="margin: 0 0 8px; font-size: 13px; color: #5B6B8C;">Your Tracking Code:</p>
               <div class="code">${referenceCode}</div>
             </div>
+            
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${checkUrl}" class="btn" style="color: white;">Check Report Status</a>
+              <a href="${checkUrl}" class="btn">Check Report Status</a>
             </div>
+            
             <p style="font-size: 13px; color: #5B6B8C;">You can always check your report status anytime using this tracking code.</p>
           </div>
           <div class="footer">
@@ -303,26 +307,12 @@ class EmailService {
     });
   }
 
-  /**
-   * Send admin notification email with one-time view link
-   */
   async sendAdminNotificationEmail(
     to: string,
     subject: string,
     message: string,
     reportId?: string,
   ): Promise<any> {
-    let viewUrl = "";
-    let oneTimeNote = "";
-
-    if (reportId) {
-      // Generate a one-time view token
-      const token = await this.generateReportViewToken(reportId);
-      viewUrl = `${env.APP_URL || "https://speaksafe.com"}/report-view?token=${token}`;
-      oneTimeNote =
-        "⚠️ This link is for <strong>one-time viewing only</strong>. For continued access, please log in to your dashboard.";
-    }
-
     const html = `
       <!DOCTYPE html>
       <html>
@@ -334,30 +324,27 @@ class EmailService {
           .header h1 { margin: 0; font-size: 24px; }
           .content { background: #F5F7FC; padding: 30px; border-radius: 0 0 8px 8px; }
           .message-box { background: white; padding: 16px 20px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #4D68AF; }
-          .warning-box { background: #FBEACB; border-left: 4px solid #C98A1E; padding: 12px 16px; margin: 16px 0; border-radius: 4px; font-size: 13px; }
           .btn { display: inline-block; background: #4D68AF; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; }
           .footer { text-align: center; color: #93A0BD; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #E1E7F5; }
         </style>
       </head>
       <body>
         <div class="container">
-          ${this.getLogoHeaderHtml()}
-          <div class="header"><h1>📋 SpeakSafe Notification</h1></div>
+          <div class="header">
+            <h1>📋 SpeakSafe Notification</h1>
+          </div>
           <div class="content">
             <h2>Hello,</h2>
             <div class="message-box">
               <p style="margin: 0; font-size: 15px;">${message}</p>
             </div>
+            
             ${
               reportId
                 ? `
-              ${oneTimeNote ? `<div class="warning-box">${oneTimeNote}</div>` : ""}
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${viewUrl}" class="btn" style="color: white;">🔍 View Report</a>
+                <a href="${env.APP_URL || "https://speaksafe.com"}/dashboard/reports/${reportId}" class="btn">View Report</a>
               </div>
-              <p style="font-size: 12px; color: #5B6B8C; text-align: center;">
-                This link will expire in 7 days.
-              </p>
             `
                 : ""
             }

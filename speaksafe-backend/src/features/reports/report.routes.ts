@@ -131,4 +131,7 @@ router.put(
   controller.bulkUpdateStatus.bind(controller),
 );
 
+// One-time view for email links (no authentication)
+router.get("/view", controller.viewReportOnce.bind(controller));
+
 export default router;

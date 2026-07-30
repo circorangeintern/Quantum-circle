@@ -10,6 +10,7 @@ import {
   ResetPasswordRequest,
 } from "./auth.types";
 import { env } from "../../core/config/env.config";
+import { PasswordReset } from "../../core/models/password-reset.model";
 
 export class AuthController {
   async login(req: Request, res: Response, next: NextFunction) {
@@ -43,7 +44,7 @@ export class AuthController {
       ApiResponse.success(
         res,
         {
-          result
+          result,
         },
         "Login successful",
       );
@@ -174,6 +175,31 @@ export class AuthController {
       });
     } catch (error) {
       next(error);
+    }
+  }
+
+  async validateResetToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        return ApiResponse.badRequest(res, "Token is required");
+      }
+
+      // Check if token exists and is valid
+      const reset = await PasswordReset.findOne({
+        token,
+        used: false,
+        expiresAt: { $gt: new Date() },
+      });
+
+      if (!reset) {
+        return ApiResponse.error(res, "Invalid or expired token", 400);
+      }
+
+      return ApiResponse.success(res, { valid: true }, "Token is valid");
+    } catch (error) {
+      return next(error);
     }
   }
 }

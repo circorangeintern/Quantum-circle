@@ -9,6 +9,7 @@ export type AuditAction =
   | "report_deleted"
   | "report_updated"
   | "report_assigned"
+  | "report_viewed_via_email"
   | "note_added"
   | "urgency_updated"
   | "password_changed"
@@ -48,6 +49,7 @@ const AuditLogSchema = new Schema<IAuditLog>(
         "logout",
         "status_update",
         "report_viewed",
+        "report_viewed_via_email",
         "report_created",
         "report_deleted",
         "report_updated",

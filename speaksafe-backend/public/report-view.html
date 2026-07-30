@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Report Details - SpeakSafe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/auth-pages.css" />
+    <style>
+      /* ... same styles as before ... */
+    </style>
+  </head>
+  <body>
+    <div class="auth-container report-view-container">
+      <div class="auth-card" id="app">
+        <!-- Logo -->
+        <div class="auth-logo">
+          <img
+            src="https://res.cloudinary.com/arlksjrh/image/upload/v1785392817/speaksafe-logo_ili6ey.png"
+            alt="SpeakSafe Logo"
+          />
+        </div>
+
+        <!-- State: Loading -->
+        <div id="state-loading" class="loading-container">
+          <div class="spinner"></div>
+          <p style="color: var(--text-muted); font-size: 14px">
+            Loading report details...
+          </p>
+        </div>
+
+        <!-- State: Expired/Invalid -->
+        <div id="state-expired" style="display: none">
+          <div class="expired-message">
+            <span class="icon">🔒</span>
+            <h1 class="auth-title" id="expiredTitle">Link Unavailable</h1>
+            <p class="auth-subtitle" id="expiredMessage">
+              This report link is no longer available.
+            </p>
+          </div>
+
+          <div class="warning-box">
+            <p id="expiredWarning">
+              For security, report links can only be viewed once and expire
+              after 7 days. Please log in to your
+              <span class="highlight">SpeakSafe Dashboard</span> to view this
+              report.
+            </p>
+          </div>
+
+          <div class="btn-group">
+            <a
+              href="https://speaksafe-t6ko.onrender.com/login"
+              class="btn"
+              style="text-decoration: none; text-align: center; display: block"
+            >
+              🔐 Go to Login
+            </a>
+            <a
+              href="https://speaksafe-t6ko.onrender.com/"
+              class="btn btn-secondary"
+              style="text-decoration: none; text-align: center; display: block"
+            >
+              🏠 Home
+            </a>
+          </div>
+        </div>
+
+        <!-- State: Report Details -->
+        <div id="state-report" style="display: none">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 4px;
+              flex-wrap: wrap;
+              gap: 8px;
+            "
+          >
+            <h1
+              class="auth-title"
+              style="font-size: 20px; margin-bottom: 0; text-align: left"
+              id="reportTitle"
+            >
+              Report Title
+            </h1>
+            <span class="status-badge" id="statusBadge">New</span>
+          </div>
+
+          <p
+            style="
+              font-size: 13px;
+              color: var(--text-faint);
+              margin-bottom: 16px;
+            "
+          >
+            <span id="reportRef">SS-2026-XXXX</span> &middot; Submitted
+            <span id="reportDate">—</span>
+          </p>
+
+          <!-- Warning - One-time view -->
+          <div
+            class="warning-box"
+            style="border-left-color: var(--red); background: var(--red-light)"
+          >
+            <p style="color: var(--red)">
+              🔒 This link has been
+              <span class="highlight" style="color: var(--red)"
+                >used and is no longer valid</span
+              >. Please log in to your dashboard for continued access to this
+              report.
+            </p>
+          </div>
+
+          <!-- Meta Grid -->
+          <div class="meta-grid">
+            <div class="item">
+              <span class="label">Category</span>
+              <span class="value" id="reportCategory">—</span>
+            </div>
+            <div class="item">
+              <span class="label">Urgency</span>
+              <span class="value" id="reportUrgency">—</span>
+            </div>
+            <div class="item">
+              <span class="label">Status</span>
+              <span class="value" id="reportStatusText">—</span>
+            </div>
+            <div class="item">
+              <span class="label">Assigned To</span>
+              <span class="value" id="reportAssigned">—</span>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="description-box">
+            <span class="label">Description</span>
+            <div id="reportDescription">—</div>
+          </div>
+
+          <!-- Location & People -->
+          <div id="extraDetails" style="display: none">
+            <div class="meta-grid" style="grid-template-columns: 1fr 1fr">
+              <div class="item">
+                <span class="label">Location</span>
+                <span class="value" id="reportLocation">—</span>
+              </div>
+              <div class="item">
+                <span class="label">People Involved</span>
+                <span class="value" id="reportPeople">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timeline -->
+          <div id="timelineContainer">
+            <p
+              style="
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--text-faint);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin: 16px 0 6px;
+              "
+            >
+              Progress Timeline
+            </p>
+            <ul class="timeline" id="timeline"></ul>
+          </div>
+
+          <!-- Actions -->
+          <div class="btn-group">
+            <a
+              href="https://speaksafe-t6ko.onrender.com/login"
+              class="btn"
+              style="text-decoration: none; text-align: center; display: block"
+            >
+              🔐 Go to Dashboard
+            </a>
+            <a
+              href="https://speaksafe-t6ko.onrender.com/"
+              class="btn btn-secondary"
+              style="text-decoration: none; text-align: center; display: block"
+            >
+              🏠 Home
+            </a>
+          </div>
+
+          <div class="auth-footer" style="margin-top: 16px">
+            <p style="font-size: 12px; color: var(--text-faint)">
+              This link has been used and will not work again. Please log in for
+              continued access.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./js/report-view.js"></script>
+  </body>
+</html>

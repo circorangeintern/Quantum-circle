@@ -13,6 +13,9 @@ import {
   BulkUpdateStatusRequest,
 } from "./report.types";
 import { ApiError } from "../../core/errors/api.error";
+import { Report } from "../../core/models/report.model";
+import { ReportViewToken } from "../../core/models/report-view-token.model";
+import { AuditLog } from "../../core/models/audit-log.model";
 
 export class ReportController {
   async createReport(req: Request, res: Response, next: NextFunction) {
@@ -238,6 +241,86 @@ export class ReportController {
       ApiResponse.success(res, result, "Bulk status update completed");
     } catch (error) {
       next(error);
+    }
+  }
+
+  async viewReportOnce(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { token } = req.query;
+
+      if (!token) {
+        return ApiResponse.badRequest(res, "View token is required");
+      }
+
+      // Find the token
+      const viewToken = await ReportViewToken.findOne({
+        token: token as string,
+        viewed: false,
+        expiresAt: { $gt: new Date() },
+      });
+
+      if (!viewToken) {
+        // Check if token exists but is expired or already viewed
+        const existingToken = await ReportViewToken.findOne({
+          token: token as string,
+        });
+
+        if (existingToken) {
+          if (existingToken.viewed) {
+            return ApiResponse.error(
+              res,
+              "This link has already been used",
+              410,
+            );
+          }
+          if (existingToken.expiresAt <= new Date()) {
+            return ApiResponse.error(res, "This link has expired", 410);
+          }
+        }
+
+        return ApiResponse.notFound(res, "Invalid or expired view token");
+      }
+
+      // Get the report
+      const report = await Report.findById(viewToken.reportId);
+      if (!report) {
+        return ApiResponse.notFound(res, "Report not found");
+      }
+
+      // Mark token as viewed
+      viewToken.viewed = true;
+      viewToken.viewedAt = new Date();
+      await viewToken.save();
+
+      // Log the view
+      await AuditLog.create({
+        action: "report_viewed_via_email",
+        reportId: report.id,
+        details: {
+          tokenId: viewToken._id,
+          viewedAt: viewToken.viewedAt,
+        },
+      });
+
+      // Return report data (sanitized for public view)
+      const reportData = {
+        referenceCode: report.referenceCode,
+        title: report.title,
+        category: report.category,
+        status: report.status,
+        urgency: report.urgency,
+        description: report.description,
+        location: report.location,
+        peopleInvolved: report.peopleInvolved,
+        submittedAt: report.submittedAt,
+        updatedAt: report.updatedAt,
+        assignedTo: report.assignedTo,
+        publicTimeline: report.publicTimeline,
+      };
+
+      return ApiResponse.success(res, reportData);
+    } catch (error) {
+      return next(error);
     }
   }
 }

@@ -67,4 +67,10 @@ router.post(
   // controller.createAdmin.bind(controller),
 );
 
+router.post(
+  "/validate-reset-token",
+  validate(resetPasswordSchema.pick({ body: true })),
+  controller.validateResetToken.bind(controller),
+);
+
 export default router;

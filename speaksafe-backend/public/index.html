@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SpeakSafe - Anonymous Reporting</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/auth-pages.css" />
+    <style>
+      .home-container {
+        max-width: 600px;
+        margin: 0 auto;
+        text-align: center;
+      }
+
+      .home-container .auth-card {
+        padding: 48px 40px;
+      }
+
+      .home-container .tagline {
+        font-size: 16px;
+        color: var(--text-muted);
+        margin-bottom: 28px;
+        line-height: 1.6;
+      }
+
+      .home-container .features {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 28px;
+        text-align: left;
+      }
+
+      .home-container .features .feature {
+        background: var(--paper);
+        padding: 12px 14px;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--navy);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .home-container .features .feature span {
+        font-size: 16px;
+      }
+
+      .home-container .btn-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .home-container .btn-group .btn-secondary {
+        background: var(--paper);
+        color: var(--navy);
+        border: 1.5px solid var(--border-strong);
+      }
+
+      .home-container .btn-group .btn-secondary:hover {
+        background: var(--peri-light);
+        border-color: var(--blue);
+      }
+
+      .home-container .divider {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin: 16px 0;
+        color: var(--text-faint);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .home-container .divider::before,
+      .home-container .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      @media (max-width: 480px) {
+        .home-container .features {
+          grid-template-columns: 1fr;
+        }
+
+        .home-container .auth-card {
+          padding: 28px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth-container home-container">
+      <div class="auth-card">
+        <div class="auth-logo">
+          <img
+            src="https://res.cloudinary.com/arlksjrh/image/upload/v1785392817/speaksafe-logo_ili6ey.png"
+            alt="SpeakSafe Logo"
+          />
+        </div>
+
+        <h1 class="auth-title">Speak Up. Stay Safe.</h1>
+        <p class="tagline">
+          Anonymous reporting for safer schools. Submit concerns, track
+          progress, and get help — all without revealing your identity.
+        </p>
+
+        <div class="features">
+          <div class="feature"><span>🛡️</span> Anonymous Reporting</div>
+          <div class="feature"><span>📊</span> Real-Time Tracking</div>
+          <div class="feature"><span>👨‍🏫</span> Authority Dashboard</div>
+          <div class="feature"><span>🔐</span> Secure & Private</div>
+        </div>
+
+        <div class="btn-group">
+          <a
+            href="/login"
+            class="btn"
+            style="text-decoration: none; text-align: center; display: block"
+          >
+            Authority Login
+          </a>
+          <a
+            href="/status"
+            class="btn-secondary"
+            style="
+              text-decoration: none;
+              text-align: center;
+              display: block;
+              background: var(--paper);
+              color: var(--navy);
+              border: 1.5px solid var(--border-strong);
+              padding: 14px;
+              border-radius: var(--radius-sm);
+              font-weight: 600;
+            "
+          >
+            📋 Check Report Status
+          </a>
+        </div>
+
+        <div class="divider">or</div>
+
+        <a
+          href="/registration-success"
+          style="
+            display: block;
+            text-align: center;
+            font-size: 14px;
+            color: var(--blue);
+            font-weight: 600;
+            text-decoration: none;
+          "
+        >
+          Register Your School →
+        </a>
+
+        <div class="auth-footer" style="margin-top: 24px">
+          <a href="#">Privacy Policy</a> &middot;
+          <a href="#">Terms of Service</a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
