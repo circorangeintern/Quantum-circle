@@ -22,7 +22,7 @@ function SuccessContent() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-4 sm:p-8 shadow-sm">
         <div className="flex flex-col items-center text-center">
           <CheckCircle2 size={70} className="mb-5 text-green-600" />
 
@@ -40,7 +40,7 @@ function SuccessContent() {
         <div className="mt-8 rounded-xl border bg-gray-50 p-6">
           <p className="text-sm font-medium text-gray-500">Tracking ID</p>
 
-          <h2 className="mt-2 break-all text-3xl font-bold tracking-wider text-blue-700">
+          <h2 className="mt-2 break-all text-2xl sm:text-3xl font-bold tracking-wider text-blue-700 w-full text-center">
             {trackingId}
           </h2>
 

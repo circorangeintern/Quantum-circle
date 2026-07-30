@@ -30,7 +30,11 @@ export function Sidebar() {
       >
         <div className="flex items-center justify-between pb-5 px-2.5">
           <span className="text-white font-display font-semibold">SpeakSafe</span>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-white/60 hover:text-white" aria-label="Close menu">
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-white/60 hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Close menu"
+          >
             ✕
           </button>
         </div>

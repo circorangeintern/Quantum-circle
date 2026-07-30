@@ -1,24 +1,132 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-
 
 import { AnonBadge, StatusBadge, UrgencyBadge } from "@/app/components/authority/Badge";
 import { useAuthority } from "@/lib/authorities/AuthorityContext";
-import { AUTHORITIES, STATUSES, URGENCIES } from "@/lib/authorities/data";
+
+const STATUSES = ["new", "open", "investigating", "resolved", "closed"];
+const URGENCIES = ["low", "medium", "high", "urgent"];
 
 export default function CaseDetailPage() {
   const router = useRouter();
   const { id } = useParams();
-  const { reports, updateField, markResolved, addNote } = useAuthority();
+  const { fetchReport, updateStatus, updateUrgency, assignReport, addNote, deleteReport, loading } =
+    useAuthority();
+  const [report, setReport] = useState(null);
   const [noteText, setNoteText] = useState("");
+  const [loadingReport, setLoadingReport] = useState(true);
+  const [reportError, setReportError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const r = reports.find((x) => x.id === id);
-  if (!r) {
+  useEffect(() => {
+    const load = async () => {
+      setLoadingReport(true);
+      setReportError(null);
+      try {
+        const data = await fetchReport(id);
+        setReport(data);
+      } catch {
+        setReportError("Failed to load report. Please try again.");
+      } finally {
+        setLoadingReport(false);
+      }
+    };
+    if (id) load();
+  }, [id, fetchReport]);
+
+  if (loadingReport) {
     return (
-      <div className="text-text-faint text-[13.5px]">Report not found.</div>
+      <div className="animate-pulse space-y-4">
+        <div className="h-8 bg-gray-100 rounded w-32" />
+        <div className="h-6 bg-gray-100 rounded w-2/3" />
+        <div className="bg-white border border-border rounded-2xl p-6 space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-5 bg-gray-100 rounded" />
+          ))}
+        </div>
+      </div>
     );
   }
+
+  if (reportError || !report) {
+    return (
+      <div className="text-text-faint text-[13.5px]">
+        {reportError ?? "Report not found."}
+      </div>
+    );
+  }
+
+  const r = report;
+
+  const handleStatusChange = async (newStatus) => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      await updateStatus(r.id, newStatus);
+      setReport((prev) => ({ ...prev, status: newStatus }));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUrgencyChange = async (newUrgency) => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      await updateUrgency(r.id, newUrgency);
+      setReport((prev) => ({ ...prev, urgency: newUrgency }));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAssignChange = async (adminId) => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      await assignReport(r.id, adminId);
+      setReport((prev) => ({ ...prev, assignedTo: adminId }));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkResolved = async () => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      await updateStatus(r.id, "resolved");
+      setReport((prev) => ({ ...prev, status: "resolved" }));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteText.trim() || actionLoading) return;
+    setActionLoading(true);
+    try {
+      await addNote(r.id, noteText);
+      setNoteText("");
+      // Reload the report to get the updated notes
+      const updated = await fetchReport(r.id);
+      setReport(updated);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Normalise field names from API shape → display
+  const description = r.description ?? r.desc ?? "";
+  const incidentDate = r.incidentDate ?? r.date ?? null;
+  const location = r.location ?? null;
+  const peopleInvolved = r.peopleInvolved ?? r.people ?? null;
+  const attachments = r.attachments ?? r.files ?? [];
+  const timeline = r.publicTimeline ?? r.statusHistory ?? r.timeline ?? [];
+  const internalNotes = r.internalNotes ?? r.notes ?? [];
+  const activityLog = r.log ?? [];
+  const isAnonymous = r.isAnonymous ?? r.anon ?? false;
 
   return (
     <div>
@@ -37,9 +145,9 @@ export default function CaseDetailPage() {
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={r.status} />
             <UrgencyBadge urgency={r.urgency} />
-            <AnonBadge anon={r.anon} />
+            <AnonBadge anon={isAnonymous} />
             <span className="text-text-faint font-mono text-[12px] ml-1">
-              {r.id}
+              {r.referenceCode ?? r.id}
             </span>
           </div>
         </div>
@@ -51,8 +159,9 @@ export default function CaseDetailPage() {
             Export as PDF
           </button>
           <button
-            onClick={() => markResolved(r.id)}
-            className="bg-blue hover:bg-blue-dark text-white text-[13px] font-bold px-3.5 py-2 rounded-[10px]"
+            onClick={handleMarkResolved}
+            disabled={actionLoading || r.status === "resolved"}
+            className="bg-blue hover:bg-blue-dark text-white text-[13px] font-bold px-3.5 py-2 rounded-[10px] disabled:opacity-50"
           >
             Mark Resolved
           </button>
@@ -65,7 +174,7 @@ export default function CaseDetailPage() {
             <h3 className="text-sm font-display text-navy mb-3.5">
               Incident Description
             </h3>
-            <p className="text-sm leading-relaxed text-text m-0">{r.desc}</p>
+            <p className="text-sm leading-relaxed text-text m-0">{description}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-4.5 text-[13px]">
               <div>
                 <div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-1">
@@ -77,19 +186,19 @@ export default function CaseDetailPage() {
                 <div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-1">
                   Date &amp; time
                 </div>
-                <span>{r.date || "Not provided"}</span>
+                <span>{incidentDate || "Not provided"}</span>
               </div>
               <div>
                 <div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-1">
                   Location
                 </div>
-                <span>{r.location || "Not provided"}</span>
+                <span>{location || "Not provided"}</span>
               </div>
               <div>
                 <div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-1">
                   People involved
                 </div>
-                <span>{r.people || "Not provided"}</span>
+                <span>{peopleInvolved || "Not provided"}</span>
               </div>
             </div>
           </div>
@@ -99,56 +208,66 @@ export default function CaseDetailPage() {
               Attached Evidence
             </h3>
             <div className="flex flex-wrap gap-2.5">
-              {r.files.length ? (
-                r.files.map((f) => (
-                  <div
-                    key={f}
-                    className="flex items-center gap-2 bg-peri-light rounded-[10px] px-3.5 py-2.5 text-xs font-semibold text-navy"
-                  >
-                    📎 {f}
-                  </div>
-                ))
+              {attachments.length ? (
+                attachments.map((f, idx) => {
+                  const name = typeof f === "string" ? f : (f.filename ?? f.url ?? "File");
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 bg-peri-light rounded-[10px] px-3.5 py-2.5 text-xs font-semibold text-navy"
+                    >
+                      📎 {name}
+                    </div>
+                  );
+                })
               ) : (
                 <span className="text-text-faint">No evidence attached</span>
               )}
             </div>
           </div>
 
-          <div className="bg-white border border-border rounded-2xl p-5 sm:p-6 mb-4.5">
-            <h3 className="text-sm font-display text-navy mb-3.5">Timeline</h3>
-            <ul className="list-none p-0 m-0">
-              {r.timeline.map((t, i) => (
-                <li
-                  key={i}
-                  className="relative pl-6 pb-5 border-l-2 border-border ml-1 last:border-transparent last:pb-0"
-                >
-                  <span className="absolute -left-[6px] top-0.5 w-2.5 h-2.5 rounded-full bg-blue" />
-                  <div className="text-[11px] text-text-faint font-semibold mb-0.5">
-                    {t.d}
-                  </div>
-                  <div className="text-[13px] text-text">{t.t}</div>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {timeline.length > 0 && (
+            <div className="bg-white border border-border rounded-2xl p-5 sm:p-6 mb-4.5">
+              <h3 className="text-sm font-display text-navy mb-3.5">Timeline</h3>
+              <ul className="list-none p-0 m-0">
+                {timeline.map((t, i) => {
+                  const date = t.date ?? t.d ?? "";
+                  const text = t.event ?? t.description ?? t.t ?? "";
+                  return (
+                    <li
+                      key={i}
+                      className="relative pl-6 pb-5 border-l-2 border-border ml-1 last:border-transparent last:pb-0"
+                    >
+                      <span className="absolute -left-[6px] top-0.5 w-2.5 h-2.5 rounded-full bg-blue" />
+                      <div className="text-[11px] text-text-faint font-semibold mb-0.5">{date}</div>
+                      <div className="text-[13px] text-text">{text}</div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
 
           <div className="bg-white border border-border rounded-2xl p-5 sm:p-6 mb-4.5">
             <h3 className="text-sm font-display text-navy mb-3.5">
               Internal Notes
             </h3>
             <div className="flex flex-col gap-3 mb-3.5">
-              {r.notes.length ? (
-                r.notes.map((n, i) => (
-                  <div key={i} className="bg-paper rounded-[10px] px-3.5 py-3">
-                    <div className="flex justify-between text-[11.5px] font-bold text-navy mb-1">
-                      {n.a}
-                      <span className="font-medium text-text-faint">{n.d}</span>
+              {internalNotes.length ? (
+                internalNotes.map((n, i) => {
+                  const author = n.author ?? n.a ?? "Unknown";
+                  const date = n.createdAt ?? n.d ?? "";
+                  const text = n.content ?? n.t ?? n.note ?? "";
+                  return (
+                    <div key={i} className="bg-paper rounded-[10px] px-3.5 py-3">
+                      <div className="flex justify-between text-[11.5px] font-bold text-navy mb-1">
+                        {author}
+                        <span className="font-medium text-text-faint">{date}</span>
+                      </div>
+                      <p className="m-0 text-[12.5px] text-text leading-relaxed">{text}</p>
                     </div>
-                    <p className="m-0 text-[12.5px] text-text leading-relaxed">
-                      {n.t}
-                    </p>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="text-text-faint text-[12.5px] m-0">
                   No internal notes yet.
@@ -162,35 +281,37 @@ export default function CaseDetailPage() {
               className="w-full min-h-[60px] px-3.5 py-2.5 rounded-[10px] border border-border-strong text-sm"
             />
             <button
-              onClick={() => {
-                addNote(r.id, noteText);
-                setNoteText("");
-              }}
-              className="mt-2.5 bg-white border-[1.5px] border-border-strong text-navy text-[13px] font-bold px-3.5 py-2 rounded-[10px]"
+              onClick={handleAddNote}
+              disabled={actionLoading || !noteText.trim()}
+              className="mt-2.5 bg-white border-[1.5px] border-border-strong text-navy text-[13px] font-bold px-3.5 py-2 rounded-[10px] disabled:opacity-50"
             >
               Add Note
             </button>
           </div>
 
-          <div className="bg-white border border-border rounded-2xl p-5 sm:p-6">
-            <h3 className="text-sm font-display text-navy mb-3.5">
-              Activity Log
-            </h3>
-            <ul className="list-none p-0 m-0">
-              {r.log.map((l, i) => (
-                <li
-                  key={i}
-                  className="relative pl-6 pb-5 border-l-2 border-border ml-1 last:border-transparent last:pb-0"
-                >
-                  <span className="absolute -left-[6px] top-0.5 w-2.5 h-2.5 rounded-full bg-blue" />
-                  <div className="text-[11px] text-text-faint font-semibold mb-0.5">
-                    {l.d}
-                  </div>
-                  <div className="text-[13px] text-text">{l.t}</div>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {activityLog.length > 0 && (
+            <div className="bg-white border border-border rounded-2xl p-5 sm:p-6">
+              <h3 className="text-sm font-display text-navy mb-3.5">
+                Activity Log
+              </h3>
+              <ul className="list-none p-0 m-0">
+                {activityLog.map((l, i) => {
+                  const date = l.date ?? l.d ?? "";
+                  const text = l.action ?? l.t ?? "";
+                  return (
+                    <li
+                      key={i}
+                      className="relative pl-6 pb-5 border-l-2 border-border ml-1 last:border-transparent last:pb-0"
+                    >
+                      <span className="absolute -left-[6px] top-0.5 w-2.5 h-2.5 rounded-full bg-blue" />
+                      <div className="text-[11px] text-text-faint font-semibold mb-0.5">{date}</div>
+                      <div className="text-[13px] text-text">{text}</div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="bg-white border border-border rounded-2xl p-5 sm:p-6">
@@ -198,30 +319,32 @@ export default function CaseDetailPage() {
             <span className="block text-[11.5px] font-bold text-text-faint uppercase tracking-wide mb-1.5">
               Assigned Authority
             </span>
-            <select
-              value={r.assigned}
-              onChange={(e) => updateField(r.id, "assigned", e.target.value)}
-              className="w-full px-3 py-2.5 rounded-[10px] border border-border-strong text-sm"
-            >
-              {AUTHORITIES.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+            <input
+              type="text"
+              defaultValue={r.assignedTo ?? r.assigned ?? ""}
+              onBlur={(e) => {
+                if (e.target.value !== (r.assignedTo ?? r.assigned ?? "")) {
+                  handleAssignChange(e.target.value);
+                }
+              }}
+              placeholder="Enter admin ID or name"
+              disabled={actionLoading}
+              className="w-full px-3 py-2.5 rounded-[10px] border border-border-strong text-sm disabled:opacity-50"
+            />
           </label>
           <label className="block mb-4">
             <span className="block text-[11.5px] font-bold text-text-faint uppercase tracking-wide mb-1.5">
               Urgency Level
             </span>
             <select
-              value={r.urgency}
-              onChange={(e) => updateField(r.id, "urgency", e.target.value)}
-              className="w-full px-3 py-2.5 rounded-[10px] border border-border-strong text-sm"
+              value={r.urgency ?? ""}
+              onChange={(e) => handleUrgencyChange(e.target.value)}
+              disabled={actionLoading}
+              className="w-full px-3 py-2.5 rounded-[10px] border border-border-strong text-sm disabled:opacity-50"
             >
               {URGENCIES.map((u) => (
                 <option key={u} value={u}>
-                  {u}
+                  {u.charAt(0).toUpperCase() + u.slice(1)}
                 </option>
               ))}
             </select>
@@ -231,13 +354,14 @@ export default function CaseDetailPage() {
               Case Status
             </span>
             <select
-              value={r.status}
-              onChange={(e) => updateField(r.id, "status", e.target.value)}
-              className="w-full px-3 py-2.5 rounded-[10px] border border-border-strong text-sm"
+              value={r.status ?? ""}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              disabled={actionLoading}
+              className="w-full px-3 py-2.5 rounded-[10px] border border-border-strong text-sm disabled:opacity-50"
             >
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
                 </option>
               ))}
             </select>

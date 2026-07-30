@@ -1,13 +1,37 @@
 "use client";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 import { Sidebar } from "../components/authority/Sidebar";
 import { Topbar } from "../components/authority/Topbar";
 import { AuthorityProvider } from "@/lib/authorities/AuthorityContext";
+import { useAuth } from "@/app/providers/AuthProvider";
 
 
 function Shell({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace("/login");
+    } else if (user.role === "school-admin") {
+      // school-admin belongs in /admin, not here
+      router.replace("/admin/overview");
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user || user.role === "school-admin") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <Loader2 className="h-8 w-8 animate-spin text-blue" aria-label="Loading" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />

@@ -2,30 +2,27 @@ import axios from "axios";
 import {
   getToken,
   getRefreshToken,
-  setAccessToken,
-  setRefreshToken,
-  logout,
+  logout as clearAuth,
 } from "./authStorage";
-
-import { refreshToken } from "./auth";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
+// Request interceptor: attach Authorization: Bearer <accessToken> to every outgoing request.
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
-
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-
   return config;
 });
 
+// Response interceptor: on 401, attempt token refresh and retry original request.
 api.interceptors.response.use(
   (response) => response,
 
@@ -36,24 +33,40 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const response = await refreshToken(getRefreshToken());
+        const refreshTokenValue = getRefreshToken();
 
-        const tokens = response.data.tokens;
+        // No refresh token stored — nothing to refresh, just clear and bail
+        if (!refreshTokenValue) {
+          clearAuth();
+          return Promise.reject(error);
+        }
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+          { refreshToken: refreshTokenValue },
+          {
+            headers: { "Content-Type": "application/json" },
+            withCredentials: true,
+          },
+        );
 
-        setAccessToken(tokens.accessToken);
-        setRefreshToken(tokens.refreshToken);
-
-        originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
+        // Remove stale Authorization header so backend reads the fresh cookie.
+        delete originalRequest.headers.Authorization;
 
         return api(originalRequest);
-      } catch {
-        logout();
-
-        window.location.href = "/login";
+      } catch (refreshError) {
+        // Double-401: clear all auth data and redirect to /login
+        if (refreshError.response?.status === 401) {
+          clearAuth();
+          if (typeof window !== "undefined") {
+            window.location.replace("/login");
+          }
+        }
+        return Promise.reject(refreshError);
       }
     }
 
     return Promise.reject(error);
   },
 );
+
 export default api;

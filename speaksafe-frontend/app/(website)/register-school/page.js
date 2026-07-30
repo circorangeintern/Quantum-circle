@@ -2,28 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 
-import { toast } from "sonner";
-import { registerSchool } from "@/app/lib/auth";
-import { saveAuth } from "@/app/lib/authStorage";
-import { useAuth } from "@/app/providers/AuthProvider";
-;
+import { submitRegistration } from "@/app/lib/registrations";
 
 export default function SignupForm() {
   const [showPassword, setShowPassword] = useState(false);
-
-  const router = useRouter();
-  const { setUser } = useAuth();
-
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState("");
+  const [successSchoolName, setSuccessSchoolName] = useState("");
 
   const [formData, setFormData] = useState({
     schoolName: "",
@@ -44,6 +35,7 @@ export default function SignupForm() {
     e.preventDefault();
 
     setError("");
+    setSuccessSchoolName("");
 
     // Basic validation
     if (
@@ -57,37 +49,88 @@ export default function SignupForm() {
       return;
     }
 
+    // Domain must be like "stmarys.edu" — no @ symbol, no http
+    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!domainRegex.test(formData.domain.trim())) {
+      setError("Domain must be a valid format like \"stmarys.edu\" (no @ or http).");
+      return;
+    }
+
+    // Password must have uppercase, lowercase, and number
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+    if (!passwordRegex.test(formData.adminPassword)) {
+      setError("Password must contain at least one uppercase letter, one lowercase letter, and one number.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await registerSchool(formData);
-
-      const { admin, school, tokens } = response.data;
-
-      saveAuth({
-        admin,
-        school,
-        tokens,
-      });
-
-      setUser(admin);
-
-      toast.success("School registered successfully!");
-
-      router.replace("/admin");
+      await submitRegistration(formData);
+      // On 201 success: show pending review message with school name
+      setSuccessSchoolName(formData.schoolName);
     } catch (err) {
       if (!err.response) {
         setError("Network error. Please check your internet connection.");
+      } else if (err.response.status === 409) {
+        setError(
+          err.response.data?.message ||
+            "This domain or email is already registered."
+        );
+      } else if (err.response.status === 422 || err.response.status === 400) {
+        // Zod validation errors — show first field error if available
+        const errors = err.response.data?.errors;
+        if (errors?.length) {
+          setError(errors.map((e) => e.message).join(" "));
+        } else {
+          setError(err.response.data?.message || "Please check your input and try again.");
+        }
       } else {
         setError(
-          err.response?.data?.message ||
-            "Registration failed. Please try again.",
+          err.response.data?.message ||
+            "Registration failed. Please try again."
         );
       }
     } finally {
       setLoading(false);
     }
   };
+
+  // Success state — show pending review message
+  if (successSchoolName) {
+    return (
+      <section className="min-h-screen bg-slate-100 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl p-6 md:p-8 text-center space-y-4">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+
+          <h2 className="text-2xl font-bold text-[#142353]">
+            Registration Submitted
+          </h2>
+
+          <p className="text-slate-600">
+            Your registration for{" "}
+            <strong className="text-[#142353]">{successSchoolName}</strong> has
+            been submitted and is{" "}
+            <strong>pending review</strong> by our team.
+          </p>
+
+          <p className="text-sm text-slate-500">
+            You will receive an email once your registration has been reviewed.
+            This usually takes 1–2 business days.
+          </p>
+
+          <Link
+            href="/login"
+            className="inline-block mt-4 font-semibold text-[#142353] hover:underline text-sm"
+          >
+            Back to Sign In
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="min-h-screen bg-slate-100 flex items-center justify-center px-4 py-12">
@@ -109,8 +152,8 @@ export default function SignupForm() {
             <h2 className="text-xl font-semibold">Register Your School</h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              Register your school and create the first Super Admin account for
-              your organization.
+              Register your school to get started with SpeakSafe. Your
+              registration will be reviewed before activation.
             </p>
           </div>
         </div>
@@ -122,6 +165,7 @@ export default function SignupForm() {
 
             <Input
               id="schoolName"
+              className="w-full"
               value={formData.schoolName}
               onChange={handleChange}
               placeholder="e.g. St. Mary's Secondary School"
@@ -137,6 +181,7 @@ export default function SignupForm() {
 
             <Input
               id="domain"
+              className="w-full"
               value={formData.domain}
               onChange={handleChange}
               placeholder="stmarys.edu"
@@ -155,6 +200,7 @@ export default function SignupForm() {
 
             <Input
               id="adminName"
+              className="w-full"
               value={formData.adminName}
               onChange={handleChange}
               required
@@ -169,6 +215,7 @@ export default function SignupForm() {
             <Input
               id="adminEmail"
               type="email"
+              className="w-full"
               value={formData.adminEmail}
               onChange={handleChange}
               required
@@ -184,10 +231,10 @@ export default function SignupForm() {
               <Input
                 id="adminPassword"
                 type={showPassword ? "text" : "password"}
+                className="w-full pr-10"
                 value={formData.adminPassword}
                 onChange={handleChange}
                 placeholder="Create a strong password"
-                className="pr-10"
                 required
                 disabled={loading}
                 autoComplete="new-password"
@@ -203,16 +250,18 @@ export default function SignupForm() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {error && (
-              <p
-                className="text-sm text-red-600"
-                role="alert"
-                aria-live="polite"
-              >
-                {error}
-              </p>
-            )}
           </div>
+
+          {/* Inline error message */}
+          {error && (
+            <p
+              className="text-sm text-red-600 rounded-md bg-red-50 border border-red-200 px-3 py-2"
+              role="alert"
+              aria-live="polite"
+            >
+              {error}
+            </p>
+          )}
 
           <Button
             type="submit"
@@ -220,7 +269,7 @@ export default function SignupForm() {
             className="w-full p-6 text-white bg-[#142353] hover:bg-[#0d1a42] flex items-center justify-center"
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Registering..." : "Register School"}
+            {loading ? "Submitting..." : "Register School"}
           </Button>
 
           <p className="text-center text-sm text-slate-600">
@@ -235,10 +284,9 @@ export default function SignupForm() {
 
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
             <p className="text-sm text-blue-800">
-              Registering your school creates your organization's first
-              <strong> Super Admin </strong>
-              account. After successful registration, you'll be signed in
-              automatically and taken to the Admin Panel.
+              Your registration request will be reviewed by the SpeakSafe team.
+              You will receive an email notification once your school is
+              approved.
             </p>
           </div>
         </form>
