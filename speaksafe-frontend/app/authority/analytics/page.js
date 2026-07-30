@@ -138,15 +138,27 @@ export default function AnalyticsPage() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  // ── Derived data (safe defaults so KPIs render even if API isn't ready) ────
-  const totalReports = analytics?.totalReports ?? 0;
-  const resolvedReports = analytics?.resolvedReports ?? 0;
-  const openReports = analytics?.openReports ?? 0;
+  // ── Derived data — map backend response shape to display ───────────────────
+  const overview = analytics?.data?.overview ?? analytics?.overview ?? {};
+  const breakdown = analytics?.data?.breakdown ?? analytics?.breakdown ?? {};
+  const trends = analytics?.data?.trends ?? analytics?.trends ?? {};
+
+  const totalReports = overview?.totalReports ?? 0;
+  const resolvedReports = overview?.resolvedReports ?? 0;
+  const openReports = overview?.activeReports ?? 0;
   const pendingReports = Math.max(0, totalReports - resolvedReports - openReports);
 
-  const categoryBreakdown = analytics?.categoryBreakdown ?? {};
-  const urgencyBreakdown = analytics?.urgencyBreakdown ?? {};
-  const monthlyTrend = analytics?.monthlyTrend ?? [];
+  // categories: [{ _id: "bullying", count: 3 }, ...]
+  const categoryBreakdown = Object.fromEntries(
+    (breakdown?.categories ?? []).map((c) => [c._id, c.count])
+  );
+  const urgencyBreakdown = Object.fromEntries(
+    (breakdown?.urgencies ?? []).map((u) => [u._id, u.count])
+  );
+  const monthlyTrend = (trends?.monthly ?? []).map((m) => ({
+    label: `${m._id?.year ?? ""}-${String(m._id?.month ?? "").padStart(2, "0")}`,
+    count: m.count ?? 0,
+  }));
 
   const maxCat = Object.values(categoryBreakdown).length
     ? Math.max(...Object.values(categoryBreakdown))

@@ -1,12 +1,13 @@
 import Image from "next/image";
+import Link from "next/link";
 import React from "react";
 
 const Footer = () => {
   return (
     <div className="bg-(--navy)">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mx-auto px-5 pt-10 pb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mx-auto px-5 pt-10 pb-8">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-3">
             <Image
               src="/speaksafe.png"
               alt="SpeakSafe Logo"
@@ -22,20 +23,16 @@ const Footer = () => {
         </div>
         <div className="flex flex-col gap-2">
           <h1 className="text-white font-bold">PLATFORM</h1>
-          <p className="text-(--text-muted)">Home</p>
-          <p className="text-(--text-muted)">Report Incident</p>
-          <p className="text-(--text-muted)">Authority Login</p>
-        </div>
-        <div className="flex flex-col gap-2">
-          <h1 className="text-white font-bold">COMPANY</h1>
-          <p className="text-(--text-muted)">About</p>
-          <p className="text-(--text-muted)">Contact</p>
-          <p className="text-(--text-muted)">Help Center</p>
+          <Link href="/" className="text-(--text-muted) hover:text-white transition-colors">Home</Link>
+          <Link href="/report" className="text-(--text-muted) hover:text-white transition-colors">Submit a Report</Link>
+          <Link href="/status" className="text-(--text-muted) hover:text-white transition-colors">Check Report Status</Link>
+          <Link href="/login" className="text-(--text-muted) hover:text-white transition-colors">Authority Login</Link>
         </div>
         <div className="flex flex-col gap-2">
           <h1 className="text-white font-bold">LEGAL</h1>
+          <Link href="/register-school" className="text-(--text-muted) hover:text-white transition-colors">Register Your School</Link>
           <p className="text-(--text-muted)">Privacy Policy</p>
-          <p className="text-(--text-muted)">Terms of Service</p>
+          <p className="text-(--text-muted)">Terms of Use</p>
         </div>
       </div>
 
