@@ -1,9 +1,18 @@
+"use client";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import ReportForm from "@/app/components/Report/ReportForm";
-import React from "react";
 
+function ReportPageContent() {
+  const searchParams = useSearchParams();
+  const schoolId = searchParams.get("school");
+  return <ReportForm schoolId={schoolId} />;
+}
 
-const page = () => {
-  return <ReportForm />;
-};
-
-export default page;
+export default function ReportPage() {
+  return (
+    <Suspense>
+      <ReportPageContent />
+    </Suspense>
+  );
+}

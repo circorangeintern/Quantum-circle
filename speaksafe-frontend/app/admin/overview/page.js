@@ -30,6 +30,19 @@ export default function SchoolAdminOverviewPage() {
   const [recentReports, setRecentReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const reportLink = typeof window !== "undefined" && school?.id
+    ? `${window.location.origin}/report?school=${school.id}`
+    : null;
+
+  function copyLink() {
+    if (!reportLink) return;
+    navigator.clipboard.writeText(reportLink).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }
 
   useEffect(() => {
     async function load() {
@@ -69,6 +82,23 @@ export default function SchoolAdminOverviewPage() {
           <p className="text-[13px] text-text-faint mt-0.5">{school.name}</p>
         )}
       </div>
+
+      {/* Report link card */}
+      {reportLink && (
+        <div className="mb-6 bg-peri-light border border-blue/20 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold text-navy">Student Report Link</p>
+            <p className="text-[12px] text-text-faint mt-0.5 truncate">{reportLink}</p>
+            <p className="text-[11.5px] text-text-faint mt-0.5">Share this link with students so their reports reach your school.</p>
+          </div>
+          <button
+            onClick={copyLink}
+            className="shrink-0 bg-blue hover:bg-blue-dark text-white text-[12.5px] font-bold px-4 py-2 rounded-[10px]"
+          >
+            {copied ? "Copied!" : "Copy Link"}
+          </button>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">

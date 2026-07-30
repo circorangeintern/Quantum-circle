@@ -4,13 +4,17 @@ import { useRouter, useParams } from "next/navigation";
 
 import { AnonBadge, StatusBadge, UrgencyBadge } from "@/app/components/authority/Badge";
 import { useAuthority } from "@/lib/authorities/AuthorityContext";
+import { useAuth } from "@/app/providers/AuthProvider";
+import { getStaff } from "@/app/lib/schools";
 
-const STATUSES = ["new", "open", "investigating", "resolved", "closed"];
+const STATUSES = ["open", "investigating", "resolved", "closed"];
 const URGENCIES = ["low", "medium", "high", "urgent"];
 
 export default function CaseDetailPage() {
   const router = useRouter();
   const { id } = useParams();
+  const { school, user } = useAuth();
+  const backPath = user?.role === "school-admin" ? "/admin/reports" : "/authority/reports";
   const { fetchReport, updateStatus, updateUrgency, assignReport, addNote, deleteReport, loading } =
     useAuthority();
   const [report, setReport] = useState(null);
@@ -18,6 +22,15 @@ export default function CaseDetailPage() {
   const [loadingReport, setLoadingReport] = useState(true);
   const [reportError, setReportError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+
+  // Load staff for the assign dropdown
+  useEffect(() => {
+    if (!school?.id) return;
+    getStaff(school.id)
+      .then((data) => setStaffList(data?.data?.staff ?? data?.staff ?? data?.data ?? []))
+      .catch(() => {});
+  }, [school?.id]);
 
   useEffect(() => {
     const load = async () => {
@@ -131,7 +144,7 @@ export default function CaseDetailPage() {
   return (
     <div>
       <button
-        onClick={() => router.push("/authority/reports")}
+        onClick={() => router.push(backPath)}
         className="text-blue font-bold text-[13px] mb-3.5"
       >
         ← Back to Reports
@@ -319,18 +332,19 @@ export default function CaseDetailPage() {
             <span className="block text-[11.5px] font-bold text-text-faint uppercase tracking-wide mb-1.5">
               Assigned Authority
             </span>
-            <input
-              type="text"
-              defaultValue={r.assignedTo ?? r.assigned ?? ""}
-              onBlur={(e) => {
-                if (e.target.value !== (r.assignedTo ?? r.assigned ?? "")) {
-                  handleAssignChange(e.target.value);
-                }
-              }}
-              placeholder="Enter admin ID or name"
+            <select
+              value={r.assignedTo?.adminId ?? r.assignedTo ?? ""}
+              onChange={(e) => handleAssignChange(e.target.value)}
               disabled={actionLoading}
               className="w-full px-3 py-2.5 rounded-[10px] border border-border-strong text-sm disabled:opacity-50"
-            />
+            >
+              <option value="">Unassigned</option>
+              {staffList.map((s) => (
+                <option key={s.id ?? s._id} value={s.id ?? s._id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="block mb-4">
             <span className="block text-[11.5px] font-bold text-text-faint uppercase tracking-wide mb-1.5">

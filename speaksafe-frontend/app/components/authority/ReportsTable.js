@@ -1,9 +1,12 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { StatusBadge, UrgencyBadge, AnonBadge } from "./Badge";
 
 export function ReportsTable({ list }) {
   const router = useRouter();
+  const pathname = usePathname();
+  // School-admin is in /admin/*, authority is in /authority/*
+  const basePath = pathname?.startsWith("/admin") ? "/admin/reports" : "/authority/reports";
 
   if (list.length === 0) {
     return (
@@ -29,7 +32,7 @@ export function ReportsTable({ list }) {
           </thead>
           <tbody>
             {list.map((r) => (
-              <tr key={r.id} onClick={() => router.push(`/authority/reports/${r.id}`)} className="cursor-pointer hover:bg-[#FAFBFE]">
+              <tr key={r.id} onClick={() => router.push(`${basePath}/${r.id}`)} className="cursor-pointer hover:bg-[#FAFBFE]">
                 <td className="px-4 py-3.5 font-mono font-bold text-navy border-b border-border">{r.id}</td>
                 <td className="px-4 py-3.5 max-w-[220px] truncate border-b border-border">{r.title}</td>
                 <td className="px-4 py-3.5 text-text-faint text-[12.5px] border-b border-border">{r.category}</td>
@@ -49,7 +52,7 @@ export function ReportsTable({ list }) {
         {list.map((r) => (
           <div
             key={r.id}
-            onClick={() => router.push(`/authority/reports/${r.id}`)}
+            onClick={() => router.push(`${basePath}/${r.id}`)}
             className="cursor-pointer border border-border rounded-xl p-4 hover:bg-[#FAFBFE]"
           >
             <div className="flex items-start justify-between gap-2 mb-3">

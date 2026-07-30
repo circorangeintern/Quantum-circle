@@ -17,7 +17,7 @@ import AnonymousToggle from "./AnonymousToggle";
 import PrivacyNotice from "./PrivacyNotice";
 import { createReport } from "@/app/lib/reports";
 
-const ReportForm = () => {
+const ReportForm = ({ schoolId }) => {
   const router = useRouter();
   const [apiErrors, setApiErrors] = useState({});
   const [rateLimitError, setRateLimitError] = useState("");
@@ -61,6 +61,11 @@ const ReportForm = () => {
     }
     if (data.peopleInvolved) {
       formData.append("peopleInvolved", data.peopleInvolved);
+    }
+
+    // Attach schoolId if present in URL
+    if (schoolId) {
+      formData.append("schoolId", schoolId);
     }
 
     // Attach files (evidence array from EvidenceUpload)
