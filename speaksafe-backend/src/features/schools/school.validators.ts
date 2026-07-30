@@ -44,7 +44,7 @@ export const inviteStaffSchema = z.object({
         canResolve: z.boolean().optional(),
         canViewAll: z.boolean().optional(),
         canDelete: z.boolean().optional(),
-        canManageUsers: z.boolean().optional(),
+        canManageStaff: z.boolean().optional(),
       })
       .optional(),
   }),

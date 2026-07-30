@@ -89,7 +89,7 @@ export class AuthRepository {
         canResolve: true,
         canViewAll: true,
         canDelete: true,
-        canManageUsers: true,
+        canManageStaff: true,
       };
     }
 

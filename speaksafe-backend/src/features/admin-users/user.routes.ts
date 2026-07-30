@@ -51,7 +51,7 @@ router.get(
 // Create system-admin
 router.post(
   "/",
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   validate(createUserSchema),
   validateEmailUniqueness,
   controller.createUser.bind(controller),
@@ -60,7 +60,7 @@ router.post(
 // Update system-admin
 router.put(
   "/:id",
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   validate(updateUserSchema),
   checkUserExists,
   validateEmailUniqueness,
@@ -70,7 +70,7 @@ router.put(
 // Reset system-admin password
 router.post(
   "/:id/reset-password",
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   validate(resetPasswordSchema),
   checkUserExists,
   controller.resetPassword.bind(controller),
@@ -79,7 +79,7 @@ router.post(
 // Delete system-admin
 router.delete(
   "/:id",
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   validate(deleteUserSchema),
   checkUserExists,
   preventDeleteSelf,

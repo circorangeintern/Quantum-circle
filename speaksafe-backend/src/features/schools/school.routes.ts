@@ -15,7 +15,7 @@ router.get("/:id", authenticate, controller.getSchool.bind(controller));
 router.put(
   "/:id",
   authenticate,
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   validate(updateSchoolSchema),
   controller.updateSchool.bind(controller),
 );
@@ -31,7 +31,7 @@ router.get(
 router.post(
   "/:id/invite",
   authenticate,
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   validate(inviteStaffSchema),
   controller.inviteStaff.bind(controller),
 );
@@ -40,7 +40,7 @@ router.post(
 router.delete(
   "/:id/staffs/:staffId",
   authenticate,
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   controller.removeStaff.bind(controller),
 );
 

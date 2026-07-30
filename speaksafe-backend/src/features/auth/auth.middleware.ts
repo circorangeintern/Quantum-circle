@@ -13,7 +13,7 @@ export interface AuthRequest extends Request {
     canResolve: boolean;
     canViewAll: boolean;
     canDelete: boolean;
-    canManageUsers: boolean;
+    canManageStaff: boolean;
   };
 }
 
