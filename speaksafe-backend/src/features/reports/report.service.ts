@@ -343,7 +343,7 @@ export class ReportService {
       statusHistory: report.statusHistory,
       assignedTo: report.assignedTo
         ? {
-            adminId: report.assignedTo.adminId.toString(),
+            adminId: report.assignedTo?.adminId?.toString(),
             name: report.assignedTo.name,
             assignedAt: report.assignedTo.assignedAt,
           }
@@ -355,7 +355,7 @@ export class ReportService {
         uploadedAt: a.uploadedAt,
       })),
       internalNotes: report.internalNotes.map((n) => ({
-        adminId: n.adminId.toString(),
+        adminId: n.adminId?.toString(),
         adminName: n.adminName,
         note: n.note,
         timestamp: n.timestamp,
