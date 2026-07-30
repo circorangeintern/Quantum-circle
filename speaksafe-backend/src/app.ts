@@ -9,7 +9,7 @@ import { errorHandler } from "./core/middlewares/error-handler.middleware";
 import { standardLimiter } from "./core/config/rate-limit.config";
 import api from "./routes/api.route";
 import path from "path";
-import { env } from "./core/config/env.config";
+// import { env } from "./core/config/env.config";
 
 const app = express();
 
@@ -92,12 +92,12 @@ app.get("/status", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/status.html"));
 });
 
-// ===== Home Route =====
-if (env.NODE_ENV === "development") {
-  app.get("/", (_req, res) => {
-    res.sendFile(path.join(__dirname, "../public/index.html"));
-  });
-}
+// ===== Home Route (For dvelopment ony) =====
+// if (env.NODE_ENV === "development") {
+//   app.get("/", (_req, res) => {
+//     res.sendFile(path.join(__dirname, "../public/index-dev.html"));
+//   });
+// }
 
 // 404 handler
 app.use((_req, res) => {
