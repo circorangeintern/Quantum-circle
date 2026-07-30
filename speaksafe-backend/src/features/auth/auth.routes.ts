@@ -62,7 +62,7 @@ router.get(
 router.post(
   "/create-admin",
   authenticate,
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   // This would be handled by the UserService
   // controller.createAdmin.bind(controller),
 );

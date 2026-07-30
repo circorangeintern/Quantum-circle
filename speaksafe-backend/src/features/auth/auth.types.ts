@@ -55,7 +55,7 @@ export interface UserPermissions {
   canResolve: boolean;
   canViewAll: boolean;
   canDelete: boolean;
-  canManageUsers: boolean;
+  canManageStaff: boolean;
 }
 
 export interface UserPreferences {

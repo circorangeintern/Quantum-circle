@@ -24,7 +24,7 @@ router.post(
 router.get(
   "/",
   authenticate,
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   validate(getRegistrationsQuerySchema),
   controller.getRegistrations.bind(controller),
 );
@@ -33,7 +33,7 @@ router.get(
 router.get(
   "/stats",
   authenticate,
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   controller.getStats.bind(controller),
 );
 
@@ -41,7 +41,7 @@ router.get(
 router.put(
   "/:id/review",
   authenticate,
-  requirePermission("canManageUsers"),
+  requirePermission("canManageStaff"),
   validate(reviewRegistrationSchema),
   controller.reviewRegistration.bind(controller),
 );

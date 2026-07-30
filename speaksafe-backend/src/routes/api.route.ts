@@ -12,6 +12,6 @@ api.use("/auth", authRoutes);
 api.use("/reports", reportRoutes);
 api.use("/admin-users", adminUserRoutes);
 api.use("/schools", schoolRoutes);
-api.use("/api/registrations", registrationRoutes);
+api.use("/registrations", registrationRoutes);
 
 export default api;
