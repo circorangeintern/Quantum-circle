@@ -70,6 +70,10 @@ app.get("/reset-password", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/reset-password.html"));
 });
 
+app.get("/forgot-password", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/forgot-password.html"));
+});
+
 app.get("/registration-success", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/registration-success.html"));
 });

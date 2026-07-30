@@ -6,6 +6,8 @@
   const stateInvalid = document.getElementById("state-invalid");
   const stateValid = document.getElementById("state-valid");
   const stateSuccess = document.getElementById("state-success");
+  const invalidMessage = document.getElementById("invalidMessage");
+
   const form = document.getElementById("resetForm");
   const newPassword = document.getElementById("newPassword");
   const confirmPassword = document.getElementById("confirmPassword");
@@ -31,12 +33,14 @@
   // ===== Validate Token =====
   async function validateToken() {
     if (!token) {
-      showInvalidState();
+      showInvalidState(
+        "No reset token provided. Please request a new password reset link.",
+      );
       return;
     }
 
     try {
-      const response = await fetch("/api/v1/auth/validate-reset-token", {
+      const response = await fetch("/api/auth/validate-reset-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
@@ -45,10 +49,13 @@
       if (response.ok) {
         showValidState();
       } else {
-        showInvalidState();
+        const data = await response.json();
+        showInvalidState(data.message || "Invalid or expired reset token.");
       }
     } catch (error) {
-      showInvalidState();
+      showInvalidState(
+        "Unable to validate token. Please check your connection.",
+      );
     }
   }
 
@@ -56,11 +63,15 @@
   function showValidState() {
     stateChecking.style.display = "none";
     stateValid.style.display = "block";
+    newPassword.focus();
   }
 
-  function showInvalidState() {
+  function showInvalidState(message) {
     stateChecking.style.display = "none";
     stateInvalid.style.display = "block";
+    if (message) {
+      invalidMessage.textContent = message;
+    }
   }
 
   function showSuccessState() {
@@ -136,11 +147,19 @@
     // Validate
     if (password.length < 8) {
       showMessage("Password must be at least 8 characters", "error");
+      newPassword.focus();
       return;
     }
 
     if (password !== confirm) {
       showMessage("Passwords do not match", "error");
+      confirmPassword.focus();
+      return;
+    }
+
+    // Check if token exists
+    if (!token) {
+      showMessage("No reset token found. Please request a new link.", "error");
       return;
     }
 
@@ -149,7 +168,7 @@
     submitBtn.disabled = true;
 
     try {
-      const response = await fetch("/api/v1/auth/reset-password", {
+      const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -163,7 +182,10 @@
       if (response.ok) {
         showSuccessState();
       } else {
-        showMessage(data.message || "Failed to reset password", "error");
+        showMessage(
+          data.message || "Failed to reset password. Please try again.",
+          "error",
+        );
         submitBtn.classList.remove("loading");
         submitBtn.disabled = false;
       }
