@@ -32,8 +32,8 @@ export default function SchoolAdminOverviewPage() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  const reportLink = typeof window !== "undefined" && school?.id
-    ? `${window.location.origin}/report?school=${school.id}`
+  const reportLink = school?.id
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/report?school=${school.id}`
     : null;
 
   function copyLink() {
