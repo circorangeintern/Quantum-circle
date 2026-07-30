@@ -328,7 +328,7 @@ export class ReportService {
     await this.repository.logReportView(reportId, adminId);
 
     return {
-      id: report._id.toString(),
+      id: report.id,
       referenceCode: report.referenceCode,
       title: report.title,
       category: report.category,
