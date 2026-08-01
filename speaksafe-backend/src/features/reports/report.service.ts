@@ -123,14 +123,14 @@ export class ReportService {
       title,
       description,
       referenceCode,
-      schoolId: finalSchoolId, // Use the determined schoolId
+      schoolId: finalSchoolId,
       status: "new",
       urgency: "medium",
       reporterIdentity: {
         isAnonymous: isAnonymous !== false,
         contactEmail: !isAnonymous ? contactEmail : undefined,
-        ipAddress,
-        userAgent,
+        ipAddress: !isAnonymous ? ipAddress : undefined,
+        userAgent: !isAnonymous ? userAgent : undefined,
       },
       incidentDate: incidentDate ? new Date(incidentDate) : undefined,
       location,

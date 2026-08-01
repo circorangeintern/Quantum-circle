@@ -22,6 +22,12 @@ router.post(
   controller.login.bind(controller),
 );
 
+router.get(
+  "/charts-token",
+  authenticate,
+  controller.getChartsToken.bind(controller),
+);
+
 router.post(
   "/refresh",
   validate(refreshTokenSchema),

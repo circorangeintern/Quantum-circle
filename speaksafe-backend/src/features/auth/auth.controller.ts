@@ -11,6 +11,7 @@ import {
 } from "./auth.types";
 import { env } from "../../core/config/env.config";
 import { PasswordReset } from "../../core/models/password-reset.model";
+import { generateChartsToken } from "../../core/services/chartAuth.service";
 
 export class AuthController {
   async login(req: Request, res: Response, next: NextFunction) {
@@ -47,6 +48,36 @@ export class AuthController {
           result,
         },
         "Login successful",
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getChartsToken(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      // Grab the school ID and user metadata out of your existing session context
+      const currentSchoolId = req.adminSchoolId;
+      const currentUserRole = req.adminRole ?? "school_admin";
+
+      if (!currentSchoolId) {
+        res
+          .status(400)
+          .json({ error: "No school associated with this user session." });
+        return;
+      }
+
+      // Generate the signed token
+      const token = generateChartsToken(currentSchoolId, currentUserRole);
+
+      ApiResponse.success(
+        res,
+        { token },
+        "Charts token generated successfully",
       );
     } catch (error) {
       next(error);
