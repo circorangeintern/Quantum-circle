@@ -8,6 +8,7 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  validateTokenSchema,
 } from "./auth.validators";
 import { loginLimiter } from "../../core/config/rate-limit.config";
 
@@ -75,7 +76,7 @@ router.post(
 
 router.post(
   "/validate-reset-token",
-  validate(resetPasswordSchema.pick({ body: true })),
+  validate(validateTokenSchema),
   controller.validateResetToken.bind(controller),
 );
 

@@ -40,7 +40,7 @@ const envSchema = z.object({
   // SendGrid Email
   SENDGRID_API_KEY: z.string().optional(),
   COMPANY_LOGO_URL: z
-    .string()
+    .url()
     .default(
       "https://res.cloudinary.com/arlksjrh/image/upload/v1785392817/speaksafe-logo_ili6ey.png",
     ),
