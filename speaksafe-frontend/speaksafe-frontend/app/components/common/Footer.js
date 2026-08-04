@@ -31,8 +31,8 @@ const Footer = () => {
         <div className="flex flex-col gap-2">
           <h1 className="text-white font-bold">LEGAL</h1>
           <Link href="/register-school" className="text-(--text-muted) hover:text-white transition-colors">Register Your School</Link>
-          <Link href="/privacy" className="text-(--text-muted) hover:text-white transition-colors">Privacy Policy</Link>
-          <Link href="/terms" className="text-(--text-muted) hover:text-white transition-colors">Terms of Use</Link>
+          <p className="text-(--text-muted)">Privacy Policy</p>
+          <p className="text-(--text-muted)">Terms of Use</p>
         </div>
       </div>
 

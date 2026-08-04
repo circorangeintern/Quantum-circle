@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Check Report Status - SpeakSafe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/auth-pages.css" />
+    <style>
+      .status-input-group {
+        display: flex;
+        gap: 10px;
+        margin: 20px 0;
+      }
+
+      .status-input-group input {
+        flex: 1;
+        padding: 14px 16px;
+        border: 1.5px solid var(--border-strong);
+        border-radius: var(--radius-sm);
+        font-size: 16px;
+        font-family: "Courier New", monospace;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        transition: border-color 0.2s ease;
+      }
+
+      .status-input-group input:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(77, 104, 175, 0.15);
+      }
+
+      .status-input-group input.error {
+        border-color: var(--red);
+      }
+
+      .status-input-group input.error:focus {
+        box-shadow: 0 0 0 3px rgba(221, 75, 75, 0.15);
+      }
+
+      .status-input-group .btn {
+        width: auto;
+        padding: 14px 28px;
+        flex-shrink: 0;
+      }
+
+      .hint-text {
+        font-size: 12px;
+        color: var(--text-faint);
+        text-align: center;
+        margin-top: 8px;
+      }
+
+      .result-card {
+        display: none;
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        animation: slideUp 0.4s ease-out;
+      }
+
+      .result-card.show {
+        display: block;
+      }
+
+      .result-card .status-badge {
+        display: inline-block;
+        padding: 4px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 12px;
+      }
+
+      .result-card .status-badge.new {
+        background: #e9ecf7;
+        color: var(--text-muted);
+      }
+      .result-card .status-badge.open {
+        background: var(--peri-light);
+        color: var(--blue-dark);
+      }
+      .result-card .status-badge.investigating {
+        background: var(--amber-light);
+        color: var(--amber);
+      }
+      .result-card .status-badge.resolved {
+        background: var(--green-light);
+        color: var(--green);
+      }
+      .result-card .status-badge.closed {
+        background: #eef0f6;
+        color: var(--text-faint);
+      }
+
+      .result-card .code-display {
+        background: var(--paper);
+        border: 2px dashed var(--border-strong);
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        text-align: center;
+        margin: 12px 0 16px;
+      }
+
+      .result-card .code-display .code {
+        font-family: "Courier New", monospace;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--navy);
+        letter-spacing: 3px;
+      }
+
+      .result-card .code-display .label {
+        font-size: 11px;
+        color: var(--text-faint);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .result-card .report-details {
+        background: var(--paper);
+        border-radius: var(--radius-sm);
+        padding: 14px 16px;
+        margin: 12px 0;
+      }
+
+      .result-card .report-details .row {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        font-size: 13px;
+      }
+
+      .result-card .report-details .row .label {
+        color: var(--text-faint);
+        font-weight: 500;
+      }
+
+      .result-card .report-details .row .value {
+        color: var(--text);
+        font-weight: 600;
+        text-align: right;
+      }
+
+      .result-card .timeline {
+        list-style: none;
+        padding: 0;
+        margin: 12px 0 0;
+        position: relative;
+        padding-left: 20px;
+      }
+
+      .result-card .timeline::before {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 8px;
+        bottom: 8px;
+        width: 2px;
+        background: var(--border-strong);
+      }
+
+      .result-card .timeline li {
+        position: relative;
+        padding-bottom: 14px;
+        padding-left: 16px;
+        font-size: 13px;
+      }
+
+      .result-card .timeline li:last-child {
+        padding-bottom: 0;
+      }
+
+      .result-card .timeline li::before {
+        content: "";
+        position: absolute;
+        left: -18px;
+        top: 6px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--blue);
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px var(--blue);
+      }
+
+      .result-card .timeline li .date {
+        font-size: 11px;
+        color: var(--text-faint);
+        font-weight: 500;
+      }
+
+      .result-card .timeline li .event {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .result-card .action-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .result-card .action-buttons .btn-secondary {
+        flex: 1;
+        background: var(--paper);
+        color: var(--navy);
+        border: 1.5px solid var(--border-strong);
+        text-decoration: none;
+        text-align: center;
+        padding: 10px;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+
+      .result-card .action-buttons .btn-secondary:hover {
+        background: var(--peri-light);
+        border-color: var(--blue);
+      }
+
+      .result-card .action-buttons .btn-primary {
+        flex: 1;
+        background: var(--blue);
+        color: white;
+        text-decoration: none;
+        text-align: center;
+        padding: 10px;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: 600;
+        border: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+
+      .result-card .action-buttons .btn-primary:hover {
+        background: var(--blue-dark);
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      .btn.loading .btn-text {
+        display: none;
+      }
+
+      .btn.loading .loading-spinner {
+        display: inline-block;
+      }
+
+      .btn .loading-spinner {
+        display: none;
+      }
+
+      @media (max-width: 480px) {
+        .status-input-group {
+          flex-direction: column;
+        }
+
+        .status-input-group .btn {
+          width: 100%;
+        }
+
+        .result-card .action-buttons {
+          flex-direction: column;
+        }
+
+        .result-card .report-details .row {
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .result-card .report-details .row .value {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-logo">
+          <img
+            src="https://res.cloudinary.com/arlksjrh/image/upload/v1785392817/speaksafe-logo_ili6ey.png"
+            alt="SpeakSafe Logo"
+          />
+        </div>
+
+        <h1 class="auth-title">Check Report Status</h1>
+        <p class="auth-subtitle">
+          Enter your tracking code to check the current status of your report.
+        </p>
+
+        <div id="messageBox" class="message-box"></div>
+
+        <div class="status-input-group">
+          <input
+            type="text"
+            id="statusInput"
+            placeholder="e.g. SS-2026-XXXX"
+            maxlength="13"
+            autofocus
+          />
+          <button class="btn" id="checkBtn">
+            <span class="loading-spinner"></span>
+            <span class="btn-text">Check Status</span>
+          </button>
+        </div>
+
+        <p class="hint-text">Format: SS-2026-XXXX (e.g., SS-2026-0001)</p>
+
+        <!-- Result Card -->
+        <div class="result-card" id="resultCard">
+          <!-- Status Badge -->
+          <div style="text-align: center">
+            <span class="status-badge" id="statusBadge">New</span>
+          </div>
+
+          <!-- Tracking Code -->
+          <div class="code-display">
+            <span class="label">Tracking Code</span>
+            <span class="code" id="trackingCode">SS-2026-XXXX</span>
+          </div>
+
+          <!-- Report Details -->
+          <div class="report-details" id="reportDetails">
+            <div class="row">
+              <span class="label">Category</span>
+              <span class="value" id="reportCategory">—</span>
+            </div>
+            <div class="row">
+              <span class="label">Title</span>
+              <span class="value" id="reportTitle">—</span>
+            </div>
+            <div class="row">
+              <span class="label">Submitted</span>
+              <span class="value" id="reportDate">—</span>
+            </div>
+            <div class="row">
+              <span class="label">Last Updated</span>
+              <span class="value" id="reportUpdated">—</span>
+            </div>
+          </div>
+
+          <!-- Timeline -->
+          <div id="timelineContainer">
+            <p
+              style="
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--text-faint);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin: 12px 0 6px;
+              "
+            >
+              Progress Timeline
+            </p>
+            <ul class="timeline" id="timeline"></ul>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="action-buttons">
+            <button class="btn-secondary" id="newSearchBtn">
+              🔍 New Search
+            </button>
+            <a href="https://speaksafe-t6ko.onrender.com/" class="btn-primary">
+              🏠 Home
+            </a>
+          </div>
+        </div>
+
+        <div class="auth-footer">
+          <a href="https://speaksafe-t6ko.onrender.com/">Back to Home</a>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/status.js"></script>
+  </body>
+</html>
