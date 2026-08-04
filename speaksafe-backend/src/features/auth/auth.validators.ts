@@ -54,6 +54,12 @@ export const resetPasswordSchema = z.object({
   }),
 });
 
+export const validateTokenSchema = z.object({
+  body: z.object({
+    token: z.string().min(1, "Reset token is required"),
+  }),
+});
+
 export type LoginRequest = z.infer<typeof loginSchema>["body"];
 export type RefreshTokenRequest = z.infer<typeof refreshTokenSchema>["body"];
 export type ChangePasswordRequest = z.infer<
@@ -63,3 +69,4 @@ export type ForgotPasswordRequest = z.infer<
   typeof forgotPasswordSchema
 >["body"];
 export type ResetPasswordRequest = z.infer<typeof resetPasswordSchema>["body"];
+export type ValidateTokenRequest = z.infer<typeof validateTokenSchema>["body"];

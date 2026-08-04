@@ -17,6 +17,7 @@ const envSchema = z.object({
   // Database
   MONGODB_URI: z.url().min(1),
   MONGODB_DB_NAME: z.string().min(1).default("speaksafe"),
+  MONGODB_CHARTS_JWT_SECRET: z.string().min(32).optional(),
 
   // JWT
   JWT_SECRET: z.string().min(32),
@@ -39,7 +40,7 @@ const envSchema = z.object({
   // SendGrid Email
   SENDGRID_API_KEY: z.string().optional(),
   COMPANY_LOGO_URL: z
-    .string()
+    .url()
     .default(
       "https://res.cloudinary.com/arlksjrh/image/upload/v1785392817/speaksafe-logo_ili6ey.png",
     ),
