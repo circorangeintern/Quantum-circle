@@ -12,6 +12,7 @@ info:
     - **Anonymous Reporting** - Submit reports without revealing identity
     - **Status Tracking** - Check report status using reference codes
     - **Authority Dashboard** - Manage and investigate reports
+    - **MongoDB Charts Integration** - Secure token generation for analytics dashboards
 
     ## User Roles
     | Role | Who | Access |
@@ -50,6 +51,8 @@ tags:
     description: Report submission and management
   - name: Admin-Users
     description: System Admin management (System Admin only)
+  - name: Charts
+    description: MongoDB Charts integration for analytics dashboards
 
 # ==================== SECURITY ====================
 components:
@@ -256,6 +259,49 @@ components:
         refreshToken:
           type: string
 
+    ValidateResetTokenRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: Reset token to validate
+
+    ChartsTokenRequest:
+      type: object
+      required:
+        - filters
+      properties:
+        filters:
+          type: object
+          description: Optional filters to embed in the charts token
+          example:
+            schoolId: "65d1a2b3c4e5f67890abcdef"
+            dateRange: "last30days"
+        expiresIn:
+          type: string
+          description: Token expiration time (e.g., "1h", "24h", "7d")
+          default: "1h"
+          example: "24h"
+
+    ChartsTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+              description: JWT token for MongoDB Charts authentication
+            expiresAt:
+              type: string
+              format: date-time
+              description: Token expiration timestamp
+
     # ====== Registration Schemas ======
     SubmitRegistrationRequest:
       type: object
@@ -458,6 +504,19 @@ components:
         email:
           type: string
           format: email
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        permissions:
+          type: object
+          properties:
+            canResolve:
+              type: boolean
+
+    StaffUpdateRequest:
+      type: object
+      properties:
         name:
           type: string
           minLength: 2
@@ -941,7 +1000,7 @@ paths:
       tags:
         - Auth
       summary: Admin Login
-      description: Log in to the authority dashboard (returns school context)
+      description: Authenticate a user and return JWT tokens via HTTP-only cookies
       operationId: login
       requestBody:
         required: true
@@ -951,7 +1010,7 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
       responses:
         "200":
-          description: Login successful
+          description: Login successful - tokens set in cookies
           headers:
             Set-Cookie:
               schema:
@@ -959,8 +1018,10 @@ paths:
                 properties:
                   accessToken:
                     type: string
+                    description: JWT access token (15 min expiry)
                   refreshToken:
                     type: string
+                    description: JWT refresh token (7 day expiry)
           content:
             application/json:
               schema:
@@ -978,8 +1039,8 @@ paths:
     post:
       tags:
         - Auth
-      summary: Refresh Token
-      description: Get a new access token using a refresh token
+      summary: Refresh Access Token
+      description: Get a new access token using a valid refresh token
       operationId: refreshToken
       requestBody:
         required: true
@@ -989,7 +1050,7 @@ paths:
               $ref: "#/components/schemas/RefreshTokenRequest"
       responses:
         "200":
-          description: Token refreshed
+          description: New tokens issued
           headers:
             Set-Cookie:
               schema:
@@ -1001,28 +1062,40 @@ paths:
                     type: string
         "401":
           description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/logout:
     post:
       tags:
         - Auth
       summary: Logout
-      description: Log out and clear authentication cookies
+      description: Clear authentication cookies and invalidate refresh token
       operationId: logout
       security:
         - cookieAuth: []
       responses:
         "200":
           description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/me:
     get:
       tags:
         - Auth
-      summary: Get Current Admin
-      description: Get the currently logged-in admin's information with school context
+      summary: Get Current User
+      description: Get the authenticated admin's information with school context
       operationId: getCurrentAdmin
       security:
         - cookieAuth: []
@@ -1040,13 +1113,17 @@ paths:
                     $ref: "#/components/schemas/AdminResponse"
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/change-password:
     post:
       tags:
         - Auth
       summary: Change Password
-      description: Change the current admin's password
+      description: Change the current admin's password (requires current password)
       operationId: changePassword
       security:
         - cookieAuth: []
@@ -1059,15 +1136,23 @@ paths:
       responses:
         "200":
           description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
         "401":
           description: Not authenticated or invalid current password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/forgot-password:
     post:
       tags:
         - Auth
-      summary: Forgot Password
-      description: Request a password reset link via email
+      summary: Request Password Reset
+      description: Send a password reset link to the user's email address
       operationId: forgotPassword
       requestBody:
         required: true
@@ -1077,16 +1162,59 @@ paths:
               $ref: "#/components/schemas/ForgotPasswordRequest"
       responses:
         "200":
-          description: Password reset email sent (if email exists)
+          description: Reset email sent (always returns success for security)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
         "400":
-          description: Invalid email
+          description: Invalid email format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/validate-reset-token:
+    post:
+      tags:
+        - Auth
+      summary: Validate Reset Token
+      description: Check if a password reset token is valid and not expired
+      operationId: validateResetToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidateResetTokenRequest"
+      responses:
+        "200":
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      valid:
+                        type: boolean
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/reset-password:
     post:
       tags:
         - Auth
       summary: Reset Password
-      description: Reset password using a valid reset token
+      description: Set a new password using a valid reset token
       operationId: resetPassword
       requestBody:
         required: true
@@ -1097,15 +1225,23 @@ paths:
       responses:
         "200":
           description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
         "400":
           description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/permissions:
     get:
       tags:
         - Auth
-      summary: Get Permissions
-      description: Get the current admin's permissions
+      summary: Get User Permissions
+      description: Get the current admin's permissions and role
       operationId: getPermissions
       security:
         - cookieAuth: []
@@ -1126,6 +1262,47 @@ paths:
                         $ref: "#/components/schemas/Permissions"
                       role:
                         type: string
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/charts-token:
+    post:
+      tags:
+        - Charts
+      summary: Generate MongoDB Charts Token
+      description: Generate a JWT token for secure MongoDB Charts embedded dashboards (School Admin + System Admin)
+      operationId: generateChartsToken
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChartsTokenRequest"
+      responses:
+        "200":
+          description: Charts token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChartsTokenResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ====== REGISTRATION ROUTES ======
   /registrations:
@@ -1133,7 +1310,7 @@ paths:
       tags:
         - Registrations
       summary: Submit School Registration
-      description: Submit a school registration request (Public)
+      description: Submit a new school registration request (Public)
       operationId: submitRegistration
       requestBody:
         required: true
@@ -1148,6 +1325,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RegistrationResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Domain or email already exists
           content:
@@ -1158,8 +1341,8 @@ paths:
     get:
       tags:
         - Registrations
-      summary: Get Registrations
-      description: Get all school registrations (System Admin only)
+      summary: List Registrations
+      description: Get all school registration requests (System Admin only)
       operationId: getRegistrations
       security:
         - cookieAuth: []
@@ -1173,6 +1356,7 @@ paths:
           in: query
           schema:
             type: string
+          description: Search by school name, domain, or admin email
         - name: page
           in: query
           schema:
@@ -1206,15 +1390,23 @@ paths:
                         $ref: "#/components/schemas/RegistrationStatsResponse"
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /registrations/stats:
     get:
       tags:
         - Registrations
       summary: Get Registration Stats
-      description: Get statistics for school registrations (System Admin only)
+      description: Get statistics for school registration requests (System Admin only)
       operationId: getRegistrationStats
       security:
         - cookieAuth: []
@@ -1227,15 +1419,23 @@ paths:
                 $ref: "#/components/schemas/RegistrationStatsResponse"
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /registrations/{id}/review:
     put:
       tags:
         - Registrations
       summary: Review Registration
-      description: Approve or reject a school registration (System Admin only)
+      description: Approve or reject a school registration request (System Admin only)
       operationId: reviewRegistration
       security:
         - cookieAuth: []
@@ -1290,10 +1490,18 @@ paths:
                             type: string
                       tokens:
                         $ref: "#/components/schemas/Tokens"
-        "404":
-          description: Registration not found
         "400":
           description: Registration already reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Registration not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ====== SCHOOL ROUTES ======
   /schools/{id}:
@@ -1326,8 +1534,16 @@ paths:
                     $ref: "#/components/schemas/SchoolResponse"
         "403":
           description: Access denied to this school
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: School not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     put:
       tags:
@@ -1363,15 +1579,23 @@ paths:
                     $ref: "#/components/schemas/SchoolResponse"
         "403":
           description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: School not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /schools/{id}/staff:
     get:
       tags:
         - Schools
       summary: List School Staff
-      description: Get all staff members belonging to a school (School Admin + System Admin)
+      description: Get all staff members (school-staff) belonging to a school (School Admin + System Admin)
       operationId: getSchoolStaff
       security:
         - cookieAuth: []
@@ -1396,12 +1620,24 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/AdminResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     post:
       tags:
         - Schools
       summary: Invite Staff
-      description: Invite a new staff member to the school (School Admin only)
+      description: Invite a new school-staff member to the school (School Admin only)
       operationId: inviteStaff
       security:
         - cookieAuth: []
@@ -1432,15 +1668,23 @@ paths:
                     $ref: "#/components/schemas/AdminResponse"
         "403":
           description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /schools/{id}/staff/{staffId}:
     put:
       tags:
         - Schools
       summary: Update Staff
-      description: Update staff member details (School Admin only)
+      description: Update school-staff member details (School Admin only)
       operationId: updateStaff
       security:
         - cookieAuth: []
@@ -1462,17 +1706,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  minLength: 2
-                  maxLength: 100
-                permissions:
-                  type: object
-                  properties:
-                    canResolve:
-                      type: boolean
+              $ref: "#/components/schemas/StaffUpdateRequest"
       responses:
         "200":
           description: Staff updated successfully
@@ -1487,12 +1721,16 @@ paths:
                     $ref: "#/components/schemas/AdminResponse"
         "404":
           description: Staff not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     delete:
       tags:
         - Schools
       summary: Remove Staff
-      description: Remove/disable a staff member from the school (School Admin only)
+      description: Remove/disable a school-staff member from the school (School Admin only)
       operationId: removeStaff
       security:
         - cookieAuth: []
@@ -1523,6 +1761,16 @@ paths:
                     type: string
         "400":
           description: Cannot remove self or school-admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /schools/{id}/stats:
     get:
@@ -1547,6 +1795,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SchoolStatsResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ====== REPORT ROUTES ======
   /reports:
@@ -1571,8 +1831,16 @@ paths:
                 $ref: "#/components/schemas/CreateReportResponse"
         "400":
           description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/status/{referenceCode}:
     get:
@@ -1598,6 +1866,10 @@ paths:
                 $ref: "#/components/schemas/StatusCheckResponse"
         "404":
           description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/dashboard:
     get:
@@ -1657,6 +1929,10 @@ paths:
                 $ref: "#/components/schemas/ReportListResponse"
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/{id}:
     get:
@@ -1683,6 +1959,10 @@ paths:
                 $ref: "#/components/schemas/ReportDetailResponse"
         "404":
           description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     put:
       tags:
@@ -1707,8 +1987,31 @@ paths:
       responses:
         "200":
           description: Report updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      updated:
+                        type: array
+                        items:
+                          type: string
+                      updatedAt:
+                        type: string
+                        format: date-time
         "404":
           description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     delete:
       tags:
@@ -1727,8 +2030,16 @@ paths:
       responses:
         "200":
           description: Report deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
         "404":
           description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/{id}/status:
     put:
@@ -1754,8 +2065,29 @@ paths:
       responses:
         "200":
           description: Status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      status:
+                        $ref: "#/components/schemas/ReportStatus"
+                      updatedAt:
+                        type: string
+                        format: date-time
         "404":
           description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/{id}/urgency:
     put:
@@ -1781,8 +2113,28 @@ paths:
       responses:
         "200":
           description: Urgency updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      urgency:
+                        $ref: "#/components/schemas/ReportUrgency"
+                      isEscalated:
+                        type: boolean
         "404":
           description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/{id}/assign:
     put:
@@ -1808,8 +2160,34 @@ paths:
       responses:
         "200":
           description: Report assigned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      assignedTo:
+                        type: object
+                        properties:
+                          adminId:
+                            type: string
+                          name:
+                            type: string
+                          assignedAt:
+                            type: string
+                            format: date-time
         "404":
           description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/{id}/notes:
     post:
@@ -1835,8 +2213,31 @@ paths:
       responses:
         "200":
           description: Note added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      note:
+                        type: string
+                      addedBy:
+                        type: string
+                      timestamp:
+                        type: string
+                        format: date-time
         "404":
           description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/analytics/summary:
     get:
@@ -1850,8 +2251,30 @@ paths:
       responses:
         "200":
           description: Analytics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      overview:
+                        type: object
+                      breakdown:
+                        type: object
+                      trends:
+                        type: object
+                      performance:
+                        type: object
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/export:
     get:
@@ -1900,6 +2323,10 @@ paths:
                 format: binary
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /reports/bulk/status:
     put:
@@ -1919,8 +2346,28 @@ paths:
       responses:
         "200":
           description: Bulk update completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: number
+                      succeeded:
+                        type: number
+                      failed:
+                        type: number
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ====== ADMIN USERS ROUTES ======
   /admin-users:
@@ -1979,8 +2426,16 @@ paths:
                         $ref: "#/components/schemas/SystemAdminStatsResponse"
         "401":
           description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     post:
       tags:
@@ -2010,6 +2465,10 @@ paths:
                     $ref: "#/components/schemas/SystemAdminResponse"
         "409":
           description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /admin-users/stats:
     get:
@@ -2027,6 +2486,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SystemAdminStatsResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /admin-users/{id}:
     get:
@@ -2057,6 +2528,10 @@ paths:
                     $ref: "#/components/schemas/SystemAdminResponse"
         "404":
           description: System admin not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     put:
       tags:
@@ -2092,6 +2567,10 @@ paths:
                     $ref: "#/components/schemas/SystemAdminResponse"
         "404":
           description: System admin not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
     delete:
       tags:
@@ -2110,10 +2589,22 @@ paths:
       responses:
         "200":
           description: System admin deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
         "400":
           description: Cannot delete the last system admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: System admin not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /admin-users/{id}/reset-password:
     post:
@@ -2147,3 +2638,7 @@ paths:
                         type: string
         "404":
           description: System admin not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
