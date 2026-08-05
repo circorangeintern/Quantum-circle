@@ -20,7 +20,7 @@ const Subhero = () => {
       {/* Card */}
       <div className="grid grid-cols-2 lg:grid-cols-4 lg:gap-8 gap-5">
         <Subherocard
-          icon={<EyeOff width="true" />}
+          icon={<EyeOff />}
           title="Anonymous Reporting"
           description="No login, no name, no identifying details ever collected or stored."
         />
