@@ -10,7 +10,6 @@ const links = [
   { href: "/authority/cases", label: "Cases" },
   { href: "/authority/notifications", label: "Notifications" },
   { href: "/authority/users", label: "Users" },
-  { href: "/authority/analytics", label: "Analytics" },
   { href: "/authority/settings", label: "Settings" },
 ];
 

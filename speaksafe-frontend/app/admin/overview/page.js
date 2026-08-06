@@ -33,7 +33,7 @@ export default function SchoolAdminOverviewPage() {
   const [copied, setCopied] = useState(false);
 
   const reportLink = school?.id
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/report?school=${school.id}`
+    ? `${process.env.NEXT_PUBLIC_APP_URL ?? (typeof window !== "undefined" ? window.location.origin : "")}/report?school=${school.id}`
     : null;
 
   function copyLink() {
@@ -100,14 +100,13 @@ export default function SchoolAdminOverviewPage() {
         </div>
       )}
 
-      {/* Summary cards */}
+      {/* Summary cards — school-wide */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
         <SummaryCard label="Total Reports" value={summary?.total ?? 0} iconBg="bg-peri-light" iconColor="text-blue" icon="📋" />
         <SummaryCard label="New" value={summary?.new ?? 0} iconBg="bg-amber-light" iconColor="text-amber" icon="🔔" />
         <SummaryCard label="Investigating" value={summary?.investigating ?? 0} iconBg="bg-blue/10" iconColor="text-blue" icon="🔍" />
         <SummaryCard label="Resolved" value={summary?.resolved ?? 0} iconBg="bg-green-light" iconColor="text-green" icon="✔" />
       </div>
-
       {/* Recent reports */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[15px] font-display text-navy font-semibold">Recent Reports</h3>

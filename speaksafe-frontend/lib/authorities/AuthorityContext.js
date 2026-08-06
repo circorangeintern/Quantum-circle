@@ -41,6 +41,15 @@ export function AuthorityProvider({ children }) {
     search: "",
     sortBy: "",
   });
+
+  // Default assignedTo filter to current user's ID so authority dashboard
+  // shows only their own assigned reports
+  useEffect(() => {
+    if (currentUser?.id) {
+      setFilters((prev) => ({ ...prev, assignedTo: currentUser.id }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 

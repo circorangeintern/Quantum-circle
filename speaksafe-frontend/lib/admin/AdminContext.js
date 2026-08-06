@@ -10,8 +10,6 @@ import {
 import {
   getAdminUsers,
   createAdminUser as createAdminUserService,
-  updateAdminUser as updateAdminUserService,
-  deleteAdminUser as deleteAdminUserService,
   resetAdminPassword as resetAdminPasswordService,
 } from "@/app/lib/adminUsers";
 
@@ -168,26 +166,13 @@ export function AdminProvider({ children }) {
     }
   }, [fetchAdminUsers]);
 
-  const updateAdminUser = useCallback(async (id, data) => {
-    try {
-      await updateAdminUserService(id, data);
-      toast.success("Admin user updated");
-      await fetchAdminUsers();
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message || "Something went wrong");
-    }
-  }, [fetchAdminUsers]);
+  const updateAdminUser = useCallback(async (_id, _data) => {
+    toast.error("Update admin user is not supported in this version.");
+  }, []);
 
-  const deleteAdminUser = useCallback(async (id) => {
-    try {
-      await deleteAdminUserService(id);
-      toast.success("Admin user deleted");
-      await fetchAdminUsers();
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message || "Something went wrong");
-      throw err; // re-throw so callers can show inline errors
-    }
-  }, [fetchAdminUsers]);
+  const deleteAdminUser = useCallback(async (_id) => {
+    toast.error("Delete admin user is not supported in this version.");
+  }, []);
 
   const resetAdminPassword = useCallback(async (id) => {
     try {

@@ -204,12 +204,28 @@ export const handlers = [
   http.get(`${BASE_URL}/reports/analytics/summary`, () => {
     return HttpResponse.json(
       {
-        totalReports: 50,
-        resolvedReports: 30,
-        openReports: 20,
-        categoryBreakdown: {},
-        urgencyBreakdown: {},
-        monthlyTrend: [],
+        success: true,
+        data: {
+          overview: {
+            totalReports: 0,
+            activeReports: 0,
+            resolvedReports: 0,
+            urgentReports: 0,
+            resolutionRate: 0,
+          },
+          breakdown: {
+            categories: [],
+            statuses: [],
+            urgencies: [],
+          },
+          trends: {
+            monthly: [],
+          },
+          performance: {
+            averageResolutionTime: null,
+            adminAssignments: [],
+          },
+        },
       },
       { status: 200 },
     );

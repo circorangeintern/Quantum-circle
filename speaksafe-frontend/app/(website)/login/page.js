@@ -43,7 +43,7 @@ export default function LoginForm() {
     try {
       const response = await loginUser(formData.email, formData.password);
 
-      const { admin, school, tokens } = response.data?.result ?? response.data;
+      const { admin, school, tokens } = response.data?.data ?? response.data?.result ?? response.data;
 
       // Store authentication and update AuthProvider state
       login(admin, school, tokens);

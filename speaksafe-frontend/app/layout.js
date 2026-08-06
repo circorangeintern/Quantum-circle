@@ -2,6 +2,13 @@ import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./providers/AuthProvider";
 
+export const metadata = {
+  icons: {
+    icon: "/speaksafe.png",
+    apple: "/speaksafe.png",
+  },
+};
+
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
