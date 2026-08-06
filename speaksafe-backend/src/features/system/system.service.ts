@@ -1,12 +1,12 @@
 import { ApiError } from "../../core/errors/api.error";
-import { UserRepository } from "./user.repository";
+import { SystemUserRepository } from "./system.repository";
 import {
   CreateUserInput,
   UpdateUserInput,
   UserResponse,
   GetUsersQuery,
   PaginatedUsersResponse,
-} from "./user.types";
+} from "./system.types";
 import {
   hashPassword,
   generateTemporaryPassword,
@@ -15,11 +15,11 @@ import logger from "../../core/utils/logger.util";
 import EmailService from "../../core/services/email.service";
 import { IAdmin } from "../../core/models/admin.model";
 
-export class UserService {
-  private repository: UserRepository;
+export class SystemUserService {
+  private repository: SystemUserRepository;
 
   constructor() {
-    this.repository = new UserRepository();
+    this.repository = new SystemUserRepository();
   }
 
   // ONLY system-admins can be created here
@@ -224,4 +224,4 @@ export class UserService {
   }
 }
 
-export default new UserService();
+export default new SystemUserService();

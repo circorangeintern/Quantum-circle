@@ -264,6 +264,7 @@ export class RegistrationService {
       email: registration.adminEmail,
       passwordHash: registration.adminPasswordHash,
       name: registration.adminName,
+      department: registration.department || "Administration",
       schoolId: school._id,
       role: "school-admin",
       isActive: true,

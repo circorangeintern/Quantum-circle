@@ -8,6 +8,7 @@ export interface ISchoolRegistration extends Document {
   phone?: string;
   email?: string;
   website?: string;
+  department?: string; // Optional department for the first admin
 
   // Admin Information (first admin)
   adminName: string;

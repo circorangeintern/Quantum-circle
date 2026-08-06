@@ -4,11 +4,6 @@ import { Types } from "mongoose";
 import { GetUsersQuery } from "./user.types";
 
 export class UserRepository {
-  async createUser(userData: Partial<IAdmin>): Promise<IAdmin> {
-    const user = new Admin(userData);
-    return user.save();
-  }
-
   async findById(id: string): Promise<IAdmin | null> {
     return Admin.findById(new Types.ObjectId(id)).select(
       "-passwordHash -refreshToken",
@@ -27,10 +22,17 @@ export class UserRepository {
     users: IAdmin[];
     total: number;
   }> {
-    const { isActive, search, page = 1, limit = 20, sortBy = "newest" } = query;
+    const {
+      role,
+      isActive,
+      search,
+      page = 1,
+      limit = 20,
+      sortBy = "newest",
+    } = query;
 
-    // Only fetch system-admins
-    const filter: any = { role: "system-admin" };
+    const filter: any = {};
+    if (role) filter.role = role;
     if (isActive !== undefined) filter.isActive = isActive;
     if (search) {
       filter.$or = [
@@ -88,14 +90,32 @@ export class UserRepository {
     total: number;
     active: number;
     inactive: number;
+    roles: {
+      "system-admin": number;
+      "school-admin": number;
+      "school-staff": number;
+    };
   }> {
-    const [total, active, inactive] = await Promise.all([
-      Admin.countDocuments({ role: "system-admin" }),
-      Admin.countDocuments({ role: "system-admin", isActive: true }),
-      Admin.countDocuments({ role: "system-admin", isActive: false }),
-    ]);
+    const [total, active, inactive, systemAdmin, schoolAdmin, schoolStaff] =
+      await Promise.all([
+        Admin.countDocuments(),
+        Admin.countDocuments({ isActive: true }),
+        Admin.countDocuments({ isActive: false }),
+        Admin.countDocuments({ role: "system-admin" }),
+        Admin.countDocuments({ role: "school-admin" }),
+        Admin.countDocuments({ role: "school-staff" }),
+      ]);
 
-    return { total, active, inactive };
+    return {
+      total,
+      active,
+      inactive,
+      roles: {
+        "system-admin": systemAdmin,
+        "school-admin": schoolAdmin,
+        "school-staff": schoolStaff,
+      },
+    };
   }
 
   async updateLastLogin(userId: string): Promise<void> {
@@ -122,22 +142,13 @@ export class UserRepository {
     });
   }
 
-  async findActiveSystemAdmins(): Promise<IAdmin[]> {
-    return Admin.find({ role: "system-admin", isActive: true })
-      .select("-passwordHash -refreshToken")
-      .sort({ name: 1 });
-  }
-
-  async findSystemAdminById(id: string): Promise<IAdmin | null> {
-    return Admin.findOne({
-      _id: new Types.ObjectId(id),
-      role: "system-admin",
+  async findAdminsWithPermission(
+    permission: keyof IAdmin["permissions"],
+  ): Promise<IAdmin[]> {
+    return Admin.find({
+      isActive: true,
+      [`permissions.${permission}`]: true,
     }).select("-passwordHash -refreshToken");
-  }
-
-  // Prevent deleting the last system-admin
-  async getSystemAdminCount(): Promise<number> {
-    return Admin.countDocuments({ role: "system-admin" });
   }
 }
 

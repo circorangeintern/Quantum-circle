@@ -60,6 +60,7 @@ const AuditLogSchema = new Schema<IAuditLog>(
         "password_reset_requested",
         "password_reset_completed",
         "password_reset_email_failed",
+        "user_action",
         "user_created",
         "user_updated",
         "user_deleted",

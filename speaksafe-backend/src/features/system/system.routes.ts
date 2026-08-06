@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { UserController } from "./user.controller";
+import { SystemUserController } from "./system.controller";
 import { authenticate, requirePermission } from "../auth/auth.middleware";
 import { validate } from "../../core/middlewares/validate.middleware";
 import {
@@ -8,17 +8,17 @@ import {
   getUsersQuerySchema,
   deleteUserSchema,
   resetPasswordSchema,
-} from "./user.validators";
+} from "./system.validators";
 import {
   checkUserExists,
   preventDeleteSelf,
   preventLastSystemAdminDeletion,
   validateEmailUniqueness,
   ensureSystemAdmin,
-} from "./user.middleware";
+} from "./system.middleware";
 
 const router = Router();
-const controller = new UserController();
+const controller = new SystemUserController();
 
 // ALL routes require authentication AND system-admin role
 router.use(authenticate);

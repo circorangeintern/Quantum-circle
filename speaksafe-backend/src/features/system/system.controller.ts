@@ -1,15 +1,19 @@
 import { Response, NextFunction } from "express";
 import { ApiResponse } from "../../core/utils/api-response.util";
-import UserService from "./user.service";
+import SystemUserService from "./system.service";
 import { AuthRequest } from "../auth/auth.middleware";
-import { CreateUserInput, UpdateUserInput, GetUsersQuery } from "./user.types";
+import {
+  CreateUserInput,
+  UpdateUserInput,
+  GetUsersQuery,
+} from "./system.types";
 import { ApiError } from "../../core/errors/api.error";
 
-export class UserController {
+export class SystemUserController {
   async createUser(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const data = req.body as CreateUserInput;
-      const result = await UserService.createUser(data, req.adminId!);
+      const result = await SystemUserService.createUser(data, req.adminId!);
       ApiResponse.created(res, result, "System admin created successfully");
     } catch (error) {
       next(error);
@@ -20,7 +24,7 @@ export class UserController {
     try {
       const query = req.query as GetUsersQuery;
       const includeStats = req.query.stats === "true";
-      const result = await UserService.getUsers(query, includeStats);
+      const result = await SystemUserService.getUsers(query, includeStats);
       ApiResponse.success(res, result);
     } catch (error) {
       next(error);
@@ -33,7 +37,7 @@ export class UserController {
       if (Array.isArray(id)) {
         throw new ApiError(400, "Invalid user ID");
       }
-      const result = await UserService.getUserById(id);
+      const result = await SystemUserService.getUserById(id);
       ApiResponse.success(res, result);
     } catch (error) {
       next(error);
@@ -47,7 +51,7 @@ export class UserController {
         throw new ApiError(400, "Invalid user ID");
       }
       const data = req.body as UpdateUserInput;
-      const result = await UserService.updateUser(id, data, req.adminId!);
+      const result = await SystemUserService.updateUser(id, data, req.adminId!);
       ApiResponse.success(res, result, "System admin updated successfully");
     } catch (error) {
       next(error);
@@ -60,7 +64,7 @@ export class UserController {
       if (Array.isArray(id)) {
         throw new ApiError(400, "Invalid user ID");
       }
-      await UserService.deleteUser(id, req.adminId!);
+      await SystemUserService.deleteUser(id, req.adminId!);
       ApiResponse.success(res, null, "System admin deleted successfully");
     } catch (error) {
       next(error);
@@ -73,7 +77,10 @@ export class UserController {
       if (Array.isArray(id)) {
         throw new ApiError(400, "Invalid user ID");
       }
-      const tempPassword = await UserService.resetPassword(id, req.adminId!);
+      const tempPassword = await SystemUserService.resetPassword(
+        id,
+        req.adminId!,
+      );
       ApiResponse.success(
         res,
         { temporaryPassword: tempPassword },
@@ -86,7 +93,7 @@ export class UserController {
 
   async getStats(_req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const stats = await UserService.getUserStats();
+      const stats = await SystemUserService.getUserStats();
       ApiResponse.success(res, stats);
     } catch (error) {
       next(error);

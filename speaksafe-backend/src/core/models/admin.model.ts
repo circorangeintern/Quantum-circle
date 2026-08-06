@@ -12,6 +12,7 @@ export interface IAdmin extends Document {
   isActive: boolean;
   lastLoginAt?: Date;
   refreshToken?: string;
+  department?: string; // Optional department for school staff
   // Only for school-admin and school-staff
   permissions: {
     canAssign: boolean; // Assign reports to staff
@@ -47,6 +48,12 @@ const AdminSchema = new Schema<IAdmin>(
     passwordHash: {
       type: String,
       required: true,
+    },
+    department: {
+      type: String,
+      required: function (this: IAdmin) {
+        return this.role !== "system-admin";
+      }, // Department is required for school-admin and school-staff
     },
     name: {
       type: String,

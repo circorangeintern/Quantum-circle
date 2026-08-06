@@ -43,13 +43,15 @@ servers:
 tags:
   - name: Auth
     description: Authentication endpoints for all users
+  - name: Users
+    description: Users endpoint for update and prefrences
   - name: Registrations
     description: School registration and review (System Admin only)
   - name: Schools
     description: School management (School Admin + System Admin)
   - name: Reports
     description: Report submission and management
-  - name: Admin-Users
+  - name: System-Users
     description: System Admin management (System Admin only)
   - name: Charts
     description: MongoDB Charts integration for analytics dashboards
@@ -132,8 +134,13 @@ components:
         success:
           type: boolean
           example: true
+        message:
+          type: string
+          example: "Login successful"
         data:
           type: object
+          result:
+            type: object
           properties:
             admin:
               $ref: "#/components/schemas/AdminResponse"
@@ -268,23 +275,7 @@ components:
           type: string
           description: Reset token to validate
 
-    ChartsTokenRequest:
-      type: object
-      required:
-        - filters
-      properties:
-        filters:
-          type: object
-          description: Optional filters to embed in the charts token
-          example:
-            schoolId: "65d1a2b3c4e5f67890abcdef"
-            dateRange: "last30days"
-        expiresIn:
-          type: string
-          description: Token expiration time (e.g., "1h", "24h", "7d")
-          default: "1h"
-          example: "24h"
-
+    # ====== Charts Schemas ======
     ChartsTokenResponse:
       type: object
       properties:
@@ -296,11 +287,46 @@ components:
           properties:
             token:
               type: string
-              description: JWT token for MongoDB Charts authentication
+              description: JWT token for MongoDB Charts authentication (expires in 1 hour)
             expiresAt:
               type: string
               format: date-time
               description: Token expiration timestamp
+
+    # ====== User Schemas ======
+    UpdatePermissionsRequest:
+      type: object
+      properties:
+        canAssign:
+          type: boolean
+        canResolve:
+          type: boolean
+        canViewAll:
+          type: boolean
+        canDelete:
+          type: boolean
+        canManageUsers:
+          type: boolean
+
+    UpdatePreferencesRequest:
+      type: object
+      properties:
+        notifications:
+          type: object
+          properties:
+            newReports:
+              type: boolean
+            urgentCases:
+              type: boolean
+            weeklySummary:
+              type: boolean
+            assignments:
+              type: boolean
+        emailDigest:
+          type: boolean
+        dashboardView:
+          type: string
+          enum: [list, grid]
 
     # ====== Registration Schemas ======
     SubmitRegistrationRequest:
@@ -923,7 +949,7 @@ components:
         status:
           $ref: "#/components/schemas/ReportStatus"
 
-    # ====== Admin User Schemas ======
+    # ====== System Schemas ======
     CreateSystemAdminRequest:
       type: object
       required:
@@ -999,7 +1025,7 @@ paths:
     post:
       tags:
         - Auth
-      summary: Admin Login
+      summary: Login
       description: Authenticate a user and return JWT tokens via HTTP-only cookies
       operationId: login
       requestBody:
@@ -1274,16 +1300,18 @@ paths:
       tags:
         - Charts
       summary: Generate MongoDB Charts Token
-      description: Generate a JWT token for secure MongoDB Charts embedded dashboards (School Admin + System Admin)
+      description: |
+        Generate a JWT token for secure MongoDB Charts embedded dashboards.
+
+        **How it works:**
+        - The token is generated using the authenticated user's school ID and role
+        - No request body is required - the school ID is automatically derived from the authenticated session
+        - School Admins can only access charts for their own school
+        - System Admins can access charts for all schools (uses their own context)
+        - Token expires in 1 hour for security
       operationId: generateChartsToken
       security:
         - cookieAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ChartsTokenRequest"
       responses:
         "200":
           description: Charts token generated successfully
@@ -1291,6 +1319,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChartsTokenResponse"
+        "400":
+          description: No school associated with the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Not authenticated
           content:
@@ -1303,6 +1337,197 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  # ====== USERS ROUTES ======
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Get Users
+      description: Get all users (Only by System admin)
+      operationId: getUsers
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [system-admin, school-admin, school-staff]
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: number
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 20
+        - name: stats
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Users retrieved
+        "401":
+          description: Not authenticated
+
+  /users/stats:
+    get:
+      tags:
+        - Users
+      summary: Get User Stats
+      description: Get statistics for users (requires canViewAll permission)
+      operationId: getUserStats
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Statistics retrieved
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get User
+      description: Get a specific user (requires canViewAll permission)
+      operationId: getUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User retrieved
+        "404":
+          description: User not found
+
+    put:
+      tags:
+        - Users
+      summary: Update User
+      description: Update an admin user (requires canManageUsers permission)
+      operationId: updateUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                department:
+                  type: string
+                role:
+                  type: string
+                  enum: [admin, viewer]
+                isActive:
+                  type: boolean
+                preferences:
+                  $ref: "#/components/schemas/UpdatePreferencesRequest"
+      responses:
+        "200":
+          description: User updated
+        "404":
+          description: User not found
+
+    delete:
+      tags:
+        - Users
+      summary: Delete User
+      description: Delete a user (requires canManageUsers permission)
+      operationId: deleteUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User deleted
+        "404":
+          description: User not found
+
+  /users/{id}/permissions:
+    put:
+      tags:
+        - Users
+      summary: Update User Permissions
+      description: Update an admin user's permissions (requires canManageUsers permission)
+      operationId: updatePermissions
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePermissionsRequest"
+      responses:
+        "200":
+          description: Permissions updated
+        "404":
+          description: User not found
+
+  /users/{id}/preferences:
+    put:
+      tags:
+        - Users
+      summary: Update User Preferences
+      description: Update a user's preferences (requires authentication)
+      operationId: updatePreferences
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePreferencesRequest"
+      responses:
+        "200":
+          description: Preferences updated
+        "404":
+          description: User not found
 
   # ====== REGISTRATION ROUTES ======
   /registrations:
@@ -2369,11 +2594,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  # ====== ADMIN USERS ROUTES ======
-  /admin-users:
+  # ====== SYSTEM ADMIN ROUTES ======
+  /system:
     get:
       tags:
-        - Admin-Users
+        - System-Admins
       summary: List System Admins
       description: Get all system admins (System Admin only)
       operationId: getSystemAdmins
@@ -2439,7 +2664,7 @@ paths:
 
     post:
       tags:
-        - Admin-Users
+        - System-Admins
       summary: Create System Admin
       description: Create a new system admin (System Admin only)
       operationId: createSystemAdmin
@@ -2470,10 +2695,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /admin-users/stats:
+  /system/stats:
     get:
       tags:
-        - Admin-Users
+        - System-Admins
       summary: Get System Admin Stats
       description: Get statistics for system admins (System Admin only)
       operationId: getSystemAdminStats
@@ -2499,10 +2724,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /admin-users/{id}:
+  /system/{id}:
     get:
       tags:
-        - Admin-Users
+        - System-Admins
       summary: Get System Admin
       description: Get a specific system admin (System Admin only)
       operationId: getSystemAdmin
@@ -2535,7 +2760,7 @@ paths:
 
     put:
       tags:
-        - Admin-Users
+        - System-Users
       summary: Update System Admin
       description: Update a system admin (System Admin only)
       operationId: updateSystemAdmin
@@ -2574,7 +2799,7 @@ paths:
 
     delete:
       tags:
-        - Admin-Users
+        - System-Users
       summary: Delete System Admin
       description: Delete a system admin (System Admin only)
       operationId: deleteSystemAdmin
@@ -2606,10 +2831,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /admin-users/{id}/reset-password:
+  /system/{id}/reset-password:
     post:
       tags:
-        - Admin-Users
+        - System-Admins
       summary: Reset System Admin Password
       description: Reset a system admin's password (System Admin only)
       operationId: resetSystemAdminPassword

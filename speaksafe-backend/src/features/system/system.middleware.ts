@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ApiResponse } from "../../core/utils/api-response.util";
-import UserRepository from "./user.repository";
+import UserRepository from "./system.repository";
 import { ApiError } from "../../core/errors/api.error";
 
 export const checkUserExists = async (

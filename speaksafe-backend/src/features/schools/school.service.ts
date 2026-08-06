@@ -7,6 +7,7 @@ import EmailService from "../../core/services/email.service";
 export interface InviteStaffInput {
   email: string;
   name: string;
+  department: string;
   permissions?: Partial<{
     canAssign: boolean;
     canResolve: boolean;
@@ -146,7 +147,8 @@ export class SchoolService {
       passwordHash,
       name: data.name,
       schoolId: schoolId,
-      role: "school-staff", // ← Creates school staff
+      role: "school-staff",
+      department: data.department || "Student Affairs",
       isActive: true,
       permissions: {
         canAssign: false, // Staff cannot assign
