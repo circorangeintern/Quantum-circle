@@ -2760,7 +2760,7 @@ paths:
 
     put:
       tags:
-        - System-Users
+        - System-Admins
       summary: Update System Admin
       description: Update a system admin (System Admin only)
       operationId: updateSystemAdmin
@@ -2799,7 +2799,7 @@ paths:
 
     delete:
       tags:
-        - System-Users
+        - System-Admins
       summary: Delete System Admin
       description: Delete a system admin (System Admin only)
       operationId: deleteSystemAdmin
