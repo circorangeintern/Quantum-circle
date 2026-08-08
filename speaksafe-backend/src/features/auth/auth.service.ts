@@ -63,6 +63,7 @@ export class AuthService {
     const tokens = generateTokens({
       adminId: admin._id.toString(),
       email: admin.email,
+      name: admin.name,
     });
 
     // Update refresh token
@@ -87,7 +88,6 @@ export class AuthService {
         name: admin.name,
         role: admin.role,
         isActive: admin.isActive,
-        permissions: admin.permissions,
         preferences: admin.preferences,
       },
       tokens,
@@ -99,7 +99,7 @@ export class AuthService {
         id: school.id,
         name: school.name,
         domain: school.domain,
-        settings: school.settings,
+        settings: admin.role === "school-admin" ? school.settings : undefined,
       };
     }
 
@@ -108,7 +108,7 @@ export class AuthService {
 
   async getCurrentAdmin(adminId: string) {
     const admin = await Admin.findById(adminId).select(
-      "-passwordHash -refreshToken",
+      "-passwordHash -refreshToken -permissions",
     );
 
     if (!admin) {
@@ -121,7 +121,6 @@ export class AuthService {
       name: admin.name,
       role: admin.role,
       isActive: admin.isActive,
-      permissions: admin.permissions,
       preferences: admin.preferences,
       lastLoginAt: admin.lastLoginAt,
     };
@@ -136,9 +135,9 @@ export class AuthService {
           id: school._id,
           name: school.name,
           domain: school.domain,
-          settings: school.settings,
+          settings: admin.role === "school-admin" ? school.settings : undefined,
           isActive: school.isActive,
-          stats: school.stats,
+          stats: admin.role === "school-admin" ? school.stats : undefined,
         };
       }
     }
@@ -175,6 +174,7 @@ export class AuthService {
       const newPayload: JwtPayload = {
         adminId: admin.id,
         email: admin.email,
+        name: admin.name,
       };
       const tokens = generateTokens(newPayload);
 

@@ -6,6 +6,7 @@ import AuthService from "./auth.service";
 export interface AuthRequest extends Request {
   adminId?: string;
   adminEmail?: string;
+  adminName?: string;
   adminRole?: string;
   adminSchoolId?: string;
   adminPermissions?: {
@@ -34,6 +35,7 @@ export const authenticate = async (
     const payload = verifyAccessToken(token);
     req.adminId = payload.adminId;
     req.adminEmail = payload.email;
+    req.adminName = payload.name;
 
     // Get admin permissions
     const permissions = await AuthService.getAdminPermissions(payload.adminId);
