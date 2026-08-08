@@ -6,6 +6,16 @@ import { InviteStaffInput } from "./school.service";
 import { ApiError } from "../../core/errors/api.error";
 
 export class SchoolController {
+  // Get all school names and IDs for dropdowns
+  async getSchools(_req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await SchoolService.getSchools();
+      ApiResponse.success(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getSchool(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

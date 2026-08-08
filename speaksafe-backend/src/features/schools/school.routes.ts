@@ -7,6 +7,10 @@ import { updateSchoolSchema, inviteStaffSchema } from "./school.validators";
 const router = Router();
 const controller = new SchoolController();
 
+// ==================== PUBLIC ROUTES ====================
+// Get all schools for dropdowns
+router.get("/", controller.getSchools.bind(controller));
+
 // ==================== PROTECTED ROUTES ====================
 // Get school details
 router.get("/:id", authenticate, controller.getSchool.bind(controller));
