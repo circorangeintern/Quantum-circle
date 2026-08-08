@@ -51,7 +51,7 @@ tags:
     description: School management (School Admin + System Admin)
   - name: Reports
     description: Report submission and management
-  - name: System-Users
+  - name: System-Admins
     description: System Admin management (System Admin only)
   - name: Charts
     description: MongoDB Charts integration for analytics dashboards
@@ -169,8 +169,6 @@ components:
           type: string
           format: date-time
           nullable: true
-        permissions:
-          $ref: "#/components/schemas/Permissions"
         preferences:
           $ref: "#/components/schemas/Preferences"
         createdAt:
@@ -179,28 +177,6 @@ components:
         updatedAt:
           type: string
           format: date-time
-
-    Permissions:
-      type: object
-      properties:
-        canAssign:
-          type: boolean
-          description: Can assign reports to other admins
-        canResolve:
-          type: boolean
-          description: Can resolve reports
-        canViewAll:
-          type: boolean
-          description: Can view all reports in school
-        canManageStaff:
-          type: boolean
-          description: Can invite/remove staff
-        canDelete:
-          type: boolean
-          description: Can delete reports
-        canManageSchool:
-          type: boolean
-          description: Can update school settings
 
     Preferences:
       type: object
@@ -435,6 +411,24 @@ components:
               type: number
 
     # ====== School Schemas ======
+    SchoolListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              domain:
+                type: string
+
     SchoolResponse:
       type: object
       properties:
@@ -913,41 +907,6 @@ components:
           type: string
           minLength: 1
           maxLength: 1000
-
-    UpdateReportRequest:
-      type: object
-      properties:
-        title:
-          type: string
-          maxLength: 200
-        description:
-          type: string
-          minLength: 10
-          maxLength: 2000
-        category:
-          $ref: "#/components/schemas/ReportCategory"
-        incidentDate:
-          type: string
-          format: date-time
-        location:
-          type: string
-          maxLength: 200
-        peopleInvolved:
-          type: string
-          maxLength: 200
-
-    BulkUpdateStatusRequest:
-      type: object
-      required:
-        - reportIds
-        - status
-      properties:
-        reportIds:
-          type: array
-          items:
-            type: string
-        status:
-          $ref: "#/components/schemas/ReportStatus"
 
     # ====== System Schemas ======
     CreateSystemAdminRequest:
@@ -1729,6 +1688,31 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   # ====== SCHOOL ROUTES ======
+  /schools:
+    get:
+      tags:
+        - Schools
+      summary: List Schools
+      description: Get all schools (Public route)
+      operationId: getSchools
+      responses:
+        "200":
+          description: Schools retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      schools:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/SchoolListResponse"
+
   /schools/{id}:
     get:
       tags:
@@ -2189,55 +2173,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-    put:
-      tags:
-        - Reports
-      summary: Update Report
-      description: Update report details (requires canResolve permission)
-      operationId: updateReport
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateReportRequest"
-      responses:
-        "200":
-          description: Report updated
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                      updated:
-                        type: array
-                        items:
-                          type: string
-                      updatedAt:
-                        type: string
-                        format: date-time
-        "404":
-          description: Report not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
     delete:
       tags:
         - Reports
@@ -2546,47 +2481,6 @@ paths:
               schema:
                 type: string
                 format: binary
-        "401":
-          description: Not authenticated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /reports/bulk/status:
-    put:
-      tags:
-        - Reports
-      summary: Bulk Update Status
-      description: Update the status of multiple reports (requires canResolve permission)
-      operationId: bulkUpdateStatus
-      security:
-        - cookieAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BulkUpdateStatusRequest"
-      responses:
-        "200":
-          description: Bulk update completed
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: object
-                    properties:
-                      total:
-                        type: number
-                      succeeded:
-                        type: number
-                      failed:
-                        type: number
         "401":
           description: Not authenticated
           content:
