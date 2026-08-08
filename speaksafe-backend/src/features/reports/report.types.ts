@@ -154,17 +154,3 @@ export interface AssignReportRequest {
 export interface AddNoteRequest {
   note: string;
 }
-
-export interface UpdateReportRequest {
-  title?: string;
-  description?: string;
-  category?: ReportCategory;
-  incidentDate?: string;
-  location?: string;
-  peopleInvolved?: string;
-}
-
-export interface BulkUpdateStatusRequest {
-  reportIds: string[];
-  status: ReportStatus;
-}
