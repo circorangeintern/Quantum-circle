@@ -12,6 +12,7 @@ import {
 } from "./user.types";
 import { Admin } from "../../core/models/admin.model";
 import logger from "../../core/utils/logger.util";
+import { AuthRequest } from "../auth/auth.middleware";
 
 const DEFAULT_PERMISSIONS: UserPermissions = {
   canAssign: false,
@@ -72,15 +73,23 @@ export class UserService {
   async updateUser(
     userId: string,
     data: UpdateUserInput,
-    updatedBy: string,
+    updatedBy: AuthRequest,
   ): Promise<UserResponse> {
     const user = await this.repository.findByIdWithPassword(userId);
     if (!user) {
       throw new ApiError(404, "User not found");
     }
 
+    // Check if the updater is a school-admin and belongs to the same school as the user
+    if (
+      updatedBy.adminRole === "school-admin" &&
+      updatedBy.adminSchoolId !== user.schoolId.toString()
+    ) {
+      throw new ApiError(403, "You do not have permission to update this user");
+    }
+
     // Don't allow changing own role/permissions
-    if (updatedBy === userId) {
+    if (updatedBy.adminId === userId) {
       const disallowedFields = ["role", "permissions", "isActive"];
       const attemptedChange = Object.keys(data).some((key) =>
         disallowedFields.includes(key),
@@ -91,6 +100,13 @@ export class UserService {
           "Cannot change your own role, permissions, or active status",
         );
       }
+    }
+
+    if (
+      updatedBy.adminPermissions &&
+      !updatedBy.adminPermissions.canManageStaff
+    ) {
+      throw new ApiError(403, "You do not have permission to update users");
     }
 
     const updateData: any = {};
@@ -117,11 +133,16 @@ export class UserService {
     }
 
     // Log action
-    await this.repository.logUserAction("user_updated", updatedBy, userId, {
-      changes: data,
-    });
+    await this.repository.logUserAction(
+      "user_updated",
+      updatedBy.adminId ?? "",
+      userId,
+      {
+        changes: data,
+      },
+    );
 
-    logger.info(`User updated: ${user.email} by ${updatedBy}`);
+    logger.info(`User updated: ${user.email} by ${updatedBy.adminId}`);
 
     return this.formatUser(updated);
   }
@@ -129,21 +150,43 @@ export class UserService {
   async updatePermissions(
     userId: string,
     permissions: UpdatePermissionsInput,
-    updatedBy: string,
+    updatedBy: AuthRequest,
   ): Promise<UserResponse> {
     const user = await this.repository.findByIdWithPassword(userId);
     if (!user) {
       throw new ApiError(404, "User not found");
     }
 
+    // Check if the updater is a school-admin and belongs to the same school as the user
+    if (
+      updatedBy.adminRole === "school-admin" &&
+      updatedBy.adminSchoolId !== user.schoolId.toString()
+    ) {
+      throw new ApiError(
+        403,
+        "You do not have permission to update this user's permissions",
+      );
+    }
+
     // Don't allow changing own permissions
-    if (updatedBy === userId) {
+    if (updatedBy.adminId === userId) {
       throw new ApiError(403, "Cannot change your own permissions");
     }
 
-    // Super-admin always has all permissions
-    if (user.role === "school-admin") {
-      throw new ApiError(400, "School-admin permissions cannot be modified");
+    // Don't allow changing permissions of a system-admin
+    if (user.role === "system-admin") {
+      throw new ApiError(403, "Cannot change permissions of a system-admin");
+    }
+
+    // Don't allow changing permissions of a userif the updater is can not manage staff
+    if (
+      updatedBy.adminPermissions &&
+      !updatedBy.adminPermissions.canManageStaff
+    ) {
+      throw new ApiError(
+        403,
+        "You do not have permission to update permissions",
+      );
     }
 
     const updated = await this.repository.updateUser(userId, {
@@ -160,12 +203,14 @@ export class UserService {
     // Log action
     await this.repository.logUserAction(
       "permissions_updated",
-      updatedBy,
+      updatedBy.adminId ?? "",
       userId,
       { permissions },
     );
 
-    logger.info(`Permissions updated for ${user.email} by ${updatedBy}`);
+    logger.info(
+      `Permissions updated for ${user.email} by ${updatedBy.adminId ?? ""}`,
+    );
 
     return this.formatUser(updated);
   }
@@ -173,10 +218,23 @@ export class UserService {
   async updatePreferences(
     userId: string,
     preferences: UpdatePreferencesInput,
+    updatedBy: AuthRequest,
   ): Promise<UserResponse> {
     const user = await this.repository.findByIdWithPassword(userId);
     if (!user) {
       throw new ApiError(404, "User not found");
+    }
+
+    // Allow only the user themselves or a system-admin with manage_staff permission to update preferences
+    if (
+      updatedBy.adminId !== userId &&
+      (updatedBy.adminRole !== "system-admin" ||
+        !updatedBy.adminPermissions?.canManageStaff)
+    ) {
+      throw new ApiError(
+        403,
+        "You do not have permission to update this user's preferences",
+      );
     }
 
     const updated = await this.repository.updateUser(userId, {
@@ -198,9 +256,9 @@ export class UserService {
     return this.formatUser(updated);
   }
 
-  async deleteUser(userId: string, deletedBy: string): Promise<void> {
+  async deleteUser(userId: string, deletedBy: AuthRequest): Promise<void> {
     // Don't allow deleting self
-    if (userId === deletedBy) {
+    if (userId === deletedBy.adminId) {
       throw new ApiError(403, "Cannot delete your own account");
     }
 
@@ -209,17 +267,32 @@ export class UserService {
       throw new ApiError(404, "User not found");
     }
 
+    if (
+      deletedBy.adminRole === "school-admin" &&
+      deletedBy.adminSchoolId !== user.schoolId.toString()
+    ) {
+      throw new ApiError(403, "You do not have permission to delete this user");
+    }
+
     // Don't allow deleting system-admin from this route
     if (user.role === "system-admin") {
       throw new ApiError(403, "Cannot delete a system-admin");
     }
 
-    // Don't allow deleting super-admin
+    // Don't allow deleting the last school-admin
     if (user.role === "school-admin") {
       const superAdmins = await Admin.countDocuments({ role: "school-admin" });
       if (superAdmins <= 1) {
-        throw new ApiError(400, "Cannot delete the last super-admin");
+        throw new ApiError(400, "Cannot delete the last school-admin");
       }
+    }
+
+    // Don't allow deleting a user if the deleter does not have manage_staff permission
+    if (
+      deletedBy.adminPermissions &&
+      !deletedBy.adminPermissions.canManageStaff
+    ) {
+      throw new ApiError(403, "You do not have permission to delete this user");
     }
 
     const deleted = await this.repository.deleteUser(userId);
@@ -228,11 +301,16 @@ export class UserService {
     }
 
     // Log action
-    await this.repository.logUserAction("user_deleted", deletedBy, userId, {
-      email: user.email,
-    });
+    await this.repository.logUserAction(
+      "user_deleted",
+      deletedBy.adminId ?? "",
+      userId,
+      {
+        email: user.email,
+      },
+    );
 
-    logger.info(`User deleted: ${user.email} by ${deletedBy}`);
+    logger.info(`User deleted: ${user.email} by ${deletedBy.adminId ?? ""}`);
   }
 
   async getUserStats(): Promise<any> {

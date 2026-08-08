@@ -13,7 +13,8 @@ export class UserController {
   async getUsers(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (
-        req.adminRole !== "system-admin" &&
+        req.adminRole === "school-admin" ||
+        req.adminRole === "school-staff" ||
         !req.adminPermissions?.canViewAll
       ) {
         ApiResponse.forbidden(
@@ -34,6 +35,18 @@ export class UserController {
 
   async getUserById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (
+        req.adminRole === "school-admin" ||
+        req.adminRole === "school-staff" ||
+        !req.adminPermissions?.canViewAll
+      ) {
+        ApiResponse.forbidden(
+          res,
+          "You do not have permission to view users details",
+        );
+        return;
+      }
+
       const { id } = req.params;
 
       if (Array.isArray(id)) {
@@ -62,7 +75,7 @@ export class UserController {
       if (req.adminId) {
         if (
           req.adminRole !== "system-admin" &&
-          !req.adminPermissions?.canAssign
+          !req.adminPermissions?.canManageStaff
         ) {
           ApiResponse.forbidden(
             res,
@@ -72,7 +85,7 @@ export class UserController {
         }
       }
 
-      const result = await UserService.updateUser(id, data, req.adminId!);
+      const result = await UserService.updateUser(id, data, req);
       ApiResponse.success(res, result, "User updated successfully");
     } catch (error) {
       next(error);
@@ -89,11 +102,7 @@ export class UserController {
       }
 
       const permissions = req.body as UpdatePermissionsInput;
-      const result = await UserService.updatePermissions(
-        id,
-        permissions,
-        req.adminId!,
-      );
+      const result = await UserService.updatePermissions(id, permissions, req);
       ApiResponse.success(res, result, "Permissions updated successfully");
     } catch (error) {
       next(error);
@@ -110,7 +119,7 @@ export class UserController {
       }
 
       const preferences = req.body as UpdatePreferencesInput;
-      const result = await UserService.updatePreferences(id, preferences);
+      const result = await UserService.updatePreferences(id, preferences, req);
       ApiResponse.success(res, result, "Preferences updated successfully");
     } catch (error) {
       next(error);
@@ -126,15 +135,27 @@ export class UserController {
         return;
       }
 
-      await UserService.deleteUser(id, req.adminId!);
+      await UserService.deleteUser(id, req);
       ApiResponse.success(res, null, "User deleted successfully");
     } catch (error) {
       next(error);
     }
   }
 
-  async getStats(_req: AuthRequest, res: Response, next: NextFunction) {
+  async getStats(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      if (
+        req.adminRole === "school-admin" ||
+        req.adminRole === "school-staff" ||
+        !req.adminPermissions?.canViewAll
+      ) {
+        ApiResponse.forbidden(
+          res,
+          "You do not have permission to view all users stats",
+        );
+        return;
+      }
+
       const stats = await UserService.getUserStats();
       ApiResponse.success(res, stats);
     } catch (error) {

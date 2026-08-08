@@ -4,6 +4,7 @@ import { env } from "../config/env.config";
 export interface JwtPayload {
   adminId: string;
   email: string;
+  name: string;
 }
 
 export interface JwtTokens {
