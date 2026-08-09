@@ -243,8 +243,6 @@ export class ReportService {
     query: GetReportsQuery,
     authAdmin: AuthRequest,
   ): Promise<DashboardResponse> {
-    console.log(authAdmin);
-
     // Check if the auth Admin has a schoolId
     if (!authAdmin.adminSchoolId) {
       throw new ApiError(

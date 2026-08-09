@@ -129,7 +129,6 @@ export class AuthService {
       const school = await School.findById(admin.schoolId).select(
         "name domain settings isActive stats",
       );
-      console.log(school);
       if (school) {
         response.school = {
           id: school._id,
