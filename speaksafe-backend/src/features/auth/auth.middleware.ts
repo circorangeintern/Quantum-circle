@@ -49,7 +49,7 @@ export const authenticate = async (
 
     req.adminRole = admin.role;
     req.adminName = admin.name;
-    req.adminSchoolId = admin.schoolId;
+    req.adminSchoolId = admin.school?.id?.toString() || undefined;
 
     // Validate admin is active
     const isValid = await AuthService.validateAdmin(payload.adminId);

@@ -1255,7 +1255,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /auth/charts-token:
-    post:
+    get:
       tags:
         - Charts
       summary: Generate MongoDB Charts Token
