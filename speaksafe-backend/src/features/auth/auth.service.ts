@@ -63,7 +63,6 @@ export class AuthService {
     const tokens = generateTokens({
       adminId: admin._id.toString(),
       email: admin.email,
-      name: admin.name,
     });
 
     // Update refresh token
@@ -174,7 +173,6 @@ export class AuthService {
       const newPayload: JwtPayload = {
         adminId: admin.id,
         email: admin.email,
-        name: admin.name,
       };
       const tokens = generateTokens(newPayload);
 

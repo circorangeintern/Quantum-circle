@@ -288,7 +288,6 @@ export class RegistrationService {
     const tokens = generateTokens({
       adminId: admin._id.toString(),
       email: admin.email,
-      name: admin.name,
     });
 
     // Send approval email with login instructions

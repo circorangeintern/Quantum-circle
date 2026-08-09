@@ -35,7 +35,6 @@ export const authenticate = async (
     const payload = verifyAccessToken(token);
     req.adminId = payload.adminId;
     req.adminEmail = payload.email;
-    req.adminName = payload.name;
 
     // Get admin permissions
     const permissions = await AuthService.getAdminPermissions(payload.adminId);
@@ -49,7 +48,8 @@ export const authenticate = async (
     }
 
     req.adminRole = admin.role;
-    req.adminSchoolId = admin.school?.id;
+    req.adminName = admin.name;
+    req.adminSchoolId = admin.schoolId;
 
     // Validate admin is active
     const isValid = await AuthService.validateAdmin(payload.adminId);
