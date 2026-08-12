@@ -4,12 +4,13 @@ import { useAuthority } from "@/lib/authorities/AuthorityContext";
 import { FilterBar } from "@/app/components/authority/FilterBar";
 import { ReportsTable } from "@/app/components/authority/ReportsTable";
 
+const ACTIVE_STATUSES = ["Open", "Under Investigation"];
+
 export default function CasesPage() {
   const { reports, loading, error, fetchReports } = useAuthority();
 
-  // "active" cases are all non-resolved/non-closed reports.
-  // Filtering is handled server-side via query params, so we render whatever
-  // the context returns from the backend. The FilterBar lets users narrow by status.
+  // Only show active (non-resolved) reports in the Cases tab.
+  const activeCases = reports.filter((r) => ACTIVE_STATUSES.includes(r.status));
   if (loading) {
     return (
       <div>
@@ -43,7 +44,7 @@ export default function CasesPage() {
   return (
     <div>
       <FilterBar />
-      <ReportsTable list={reports} />
+      <ReportsTable list={activeCases} />
     </div>
   );
 }

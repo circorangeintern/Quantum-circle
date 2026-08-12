@@ -10,7 +10,7 @@ const inputCls =
   "w-full border border-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue/30";
 
 export default function AuthoritySettingsPage() {
-  const { user } = useAuth();
+  const { user, school } = useAuth();
   const [pwSubmitting, setPwSubmitting] = useState(false);
 
   const {
@@ -75,6 +75,17 @@ export default function AuthoritySettingsPage() {
             className={`${inputCls} bg-paper text-text-faint cursor-not-allowed capitalize`}
           />
         </div>
+        {school?.name && (
+          <div>
+            <label className="block text-[12.5px] font-semibold text-navy mb-1.5">School</label>
+            <input
+              type="text"
+              value={school.name}
+              readOnly
+              className={`${inputCls} bg-paper text-text-faint cursor-not-allowed`}
+            />
+          </div>
+        )}
       </div>
 
       {/* Change password */}

@@ -4,7 +4,7 @@ import axios from "axios";
 // Public — no auth required
 export const getPublicSchools = async () => {
   const response = await axios.get(
-    `${process.env.NEXT_PUBLIC_API_URL}/schools/public`
+    `${process.env.NEXT_PUBLIC_API_URL}/schools`
   );
   return response.data;
 };
