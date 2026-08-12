@@ -10,21 +10,13 @@ export interface LoginResponse {
     name: string;
     role: "system-admin" | "school-admin" | "school-staff";
     isActive: boolean;
-    permissions: {
-      canAssign: boolean;
-      canResolve: boolean;
-      canViewAll: boolean;
-      canManageStaff: boolean;
-      canDelete: boolean;
-      canManageSchool: boolean;
-    };
     preferences: any;
   };
   school?: {
     id: string;
     name: string;
     domain: string;
-    settings: any;
+    settings?: any;
   };
   tokens: {
     accessToken: string;

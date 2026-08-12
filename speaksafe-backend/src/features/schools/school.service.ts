@@ -24,6 +24,13 @@ type SchoolUpdate = Pick<
 >;
 
 export class SchoolService {
+  async getSchools() {
+    const schools = await School.find({ isActive: true }).select(
+      "id name domain",
+    );
+    return this.formatAllSchool(schools);
+  }
+
   async getSchoolById(schoolId: string, adminId: string) {
     // Verify admin belongs to this school or is super-admin
     const admin = await Admin.findById(adminId);
@@ -274,6 +281,14 @@ export class SchoolService {
       createdAt: school.createdAt,
       updatedAt: school.updatedAt,
     };
+  }
+
+  private formatAllSchool(schools: ISchool[]) {
+    return schools.map((s) => ({
+      id: s.id,
+      name: s.name.toUpperCase(),
+      domain: s.domain,
+    }));
   }
 
   private formatAdmin(admin: any) {

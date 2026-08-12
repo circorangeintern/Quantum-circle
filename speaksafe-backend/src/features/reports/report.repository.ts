@@ -1,6 +1,8 @@
 import { Report, IReport } from "../../core/models/report.model";
 import { AuditLog } from "../../core/models/audit-log.model";
 import { ReportStatus } from "../../core/constants/report.constants";
+import { AuthRequest } from "../auth/auth.middleware";
+import { ApiError } from "../../core/errors/api.error";
 
 export class ReportRepository {
   async createReport(reportData: Partial<IReport>): Promise<IReport> {
@@ -62,11 +64,33 @@ export class ReportRepository {
   async updateReportStatus(
     reportId: string,
     status: ReportStatus,
-    adminId: string,
+    authAdmin: AuthRequest,
     note?: string,
   ): Promise<IReport | null> {
     const report = await Report.findById(reportId);
     if (!report) return null;
+
+    // Check if the report belongs to the same school as the authAdmin
+    if (report.schoolId?.toString() !== authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to update the status of this report.",
+      );
+    }
+
+    // Check if report is assigned to the authAdmin (who has role of school-staff)
+    if (authAdmin.adminRole === "school-staff") {
+      if (report.assignedTo?.adminId?.toString() !== authAdmin.adminId) {
+        const message = report.assignedTo
+          ? "This report is assigned to another admin."
+          : "This report has not been assigned to you.";
+
+        throw new ApiError(
+          403,
+          `You do not have permission to update the status of this report. ${message}`,
+        );
+      }
+    }
 
     const oldStatus = report.status;
 
@@ -74,7 +98,7 @@ export class ReportRepository {
 
     report.statusHistory.push({
       status,
-      updatedBy: adminId,
+      updatedBy: authAdmin.adminId,
       timestamp: new Date(),
       note,
     });
@@ -107,7 +131,7 @@ export class ReportRepository {
 
     await AuditLog.create({
       action: "status_update",
-      adminId,
+      adminId: authAdmin.adminId,
       reportId: report.id,
       details: {
         oldStatus,

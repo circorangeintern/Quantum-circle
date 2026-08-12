@@ -26,10 +26,7 @@ export class RegistrationController {
   async getRegistrations(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const query = req.query;
-      const result = await RegistrationService.getRegistrations(
-        query,
-        req.adminId!,
-      );
+      const result = await RegistrationService.getRegistrations(query, req);
       ApiResponse.success(res, result);
     } catch (error) {
       next(error);

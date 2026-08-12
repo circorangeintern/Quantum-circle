@@ -7,7 +7,6 @@ import {
   statusCheckSchema,
   dashboardQuerySchema,
   updateStatusSchema,
-  updateReportSchema,
   addNoteSchema,
   assignReportSchema,
   updateUrgencySchema,
@@ -48,12 +47,7 @@ router.get(
 );
 
 // Get report details
-router.get(
-  "/:id",
-  authenticate,
-  validate(updateReportSchema.pick({ params: true })),
-  controller.getDetail.bind(controller),
-);
+router.get("/:id", authenticate, controller.getDetail.bind(controller));
 
 // Update report status
 router.put(
@@ -80,15 +74,6 @@ router.put(
   requirePermission("canAssign"),
   validate(assignReportSchema),
   controller.assignReport.bind(controller),
-);
-
-// Update report details
-router.put(
-  "/:id",
-  authenticate,
-  requirePermission("canResolve"),
-  validate(updateReportSchema),
-  controller.updateReport.bind(controller),
 );
 
 // Add internal note
@@ -121,14 +106,6 @@ router.delete(
   authenticate,
   requirePermission("canDelete"),
   controller.deleteReport.bind(controller),
-);
-
-// Bulk update status
-router.put(
-  "/bulk/status",
-  authenticate,
-  requirePermission("canResolve"),
-  controller.bulkUpdateStatus.bind(controller),
 );
 
 // One-time view for email links (no authentication)

@@ -6,6 +6,7 @@ import AuthService from "./auth.service";
 export interface AuthRequest extends Request {
   adminId?: string;
   adminEmail?: string;
+  adminName?: string;
   adminRole?: string;
   adminSchoolId?: string;
   adminPermissions?: {
@@ -47,7 +48,8 @@ export const authenticate = async (
     }
 
     req.adminRole = admin.role;
-    req.adminSchoolId = admin.school?.id;
+    req.adminName = admin.name;
+    req.adminSchoolId = admin.school?.id?.toString() || undefined;
 
     // Validate admin is active
     const isValid = await AuthService.validateAdmin(payload.adminId);

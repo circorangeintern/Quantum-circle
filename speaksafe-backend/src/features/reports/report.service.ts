@@ -12,7 +12,6 @@ import {
   CreateReportRequest,
   CreateReportResponse,
   GetReportsQuery,
-  UpdateReportRequest,
   DashboardResponse,
   ReportDetailResponse,
   StatusCheckResponse,
@@ -29,6 +28,7 @@ import { Types } from "mongoose";
 import { generateCSV, generatePDF } from "../../core/utils/export.util";
 import { School } from "../../core/models/school.model";
 import logger from "../../core/utils/logger.util";
+import { AuthRequest } from "../auth/auth.middleware";
 
 export class ReportService {
   private repository: ReportRepository;
@@ -241,11 +241,32 @@ export class ReportService {
 
   async getDashboardReports(
     query: GetReportsQuery,
-    adminId: string,
+    authAdmin: AuthRequest,
   ): Promise<DashboardResponse> {
+    // Check if the auth Admin has a schoolId
+    if (!authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to view reports for this school",
+      );
+    }
+
     // Get admin's school
-    const admin = await Admin.findById(adminId);
+    const admin = await Admin.findById(authAdmin.adminId).select(
+      "role schoolId",
+    );
     if (!admin) throw new ApiError(404, "Admin not found");
+
+    // Check if the admin's schoolId matches the authAdmin's schoolId
+    if (
+      authAdmin.adminSchoolId &&
+      authAdmin.adminSchoolId !== admin.schoolId?.toString()
+    ) {
+      throw new ApiError(
+        403,
+        "You do not have permission to view reports for this school",
+      );
+    }
 
     const {
       status,
@@ -254,7 +275,6 @@ export class ReportService {
       assignedTo,
       search,
       dateFrom,
-      schoolId,
       dateTo,
       page = 1,
       limit = 20,
@@ -262,12 +282,7 @@ export class ReportService {
     } = query;
 
     // Build filter
-    const filter: any = { schoolId: admin.schoolId };
-
-    // If school-admin and schoolId param provided, override
-    if (admin.role === "school-admin" && schoolId) {
-      filter.schoolId = schoolId;
-    }
+    const filter: any = { schoolId: authAdmin.adminSchoolId };
 
     if (status) filter.status = status;
     if (category) filter.category = category;
@@ -317,15 +332,45 @@ export class ReportService {
 
   async getReportDetail(
     reportId: string,
-    adminId: string,
+    authAdmin: AuthRequest,
   ): Promise<ReportDetailResponse> {
+    // Check if the auth Admin has a schoolId
+    if (!authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to view reports for this school",
+      );
+    }
+
     const report = await this.repository.findById(reportId);
     if (!report) {
       throw new ApiError(404, "Report not found");
     }
 
+    // Check if the report belongs to the same school as the authAdmin
+    if (report.schoolId?.toString() !== authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to view reports for this school",
+      );
+    }
+
+    // Check if report is assigned to the authAdmin (who has role of school-staff)
+    if (authAdmin.adminRole === "school-staff") {
+      if (report.assignedTo?.adminId?.toString() !== authAdmin.adminId) {
+        const message = report.assignedTo
+          ? "This report is assigned to another admin."
+          : "This report has not been assigned to you.";
+
+        throw new ApiError(
+          403,
+          `You do not have permission to view this report. ${message}`,
+        );
+      }
+    }
+
     // Log view
-    await this.repository.logReportView(reportId, adminId);
+    await this.repository.logReportView(reportId, authAdmin.adminId ?? "");
 
     return {
       id: report.id,
@@ -374,19 +419,21 @@ export class ReportService {
   async updateStatus(
     reportId: string,
     status: ReportStatus,
-    adminId: string,
+    authAdmin: AuthRequest,
     note?: string,
   ) {
-    const admin = await Admin.findById(adminId);
-
-    if (!admin) {
-      throw new ApiError(404, "Admin not found");
+    // Check if the auth Admin has a schoolId
+    if (!authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to view reports for this school",
+      );
     }
 
     const report = await this.repository.updateReportStatus(
       reportId,
       status,
-      adminId,
+      authAdmin,
       note,
     );
     if (!report) {
@@ -412,11 +459,14 @@ export class ReportService {
     }
 
     // Notify assigned admin
-    if (report.assignedTo && report.assignedTo.adminId.toString() !== adminId) {
+    if (
+      report.assignedTo &&
+      report.assignedTo.adminId.toString() !== authAdmin.adminId
+    ) {
       await NotificationService.createNotification(
         "update",
         "Status Updated",
-        `${admin.name} updated status to ${status} for ${report.referenceCode}`,
+        `${authAdmin.adminName} updated status to ${status} for ${report.referenceCode}`,
         report.assignedTo.adminId.toString(),
         report._id.toString(),
         { status, note },
@@ -433,13 +483,31 @@ export class ReportService {
   async updateUrgency(
     reportId: string,
     urgency: ReportUrgency,
-    adminId: string,
+    authAdmin: AuthRequest,
   ) {
-    const admin = await Admin.findById(adminId);
-    if (!admin) throw new ApiError(404, "Admin not found");
+    if (authAdmin.adminRole !== "school-admin") {
+      throw new ApiError(
+        403,
+        "You do not have permission to update report urgency",
+      );
+    }
+
+    if (!authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to update report urgency for this school",
+      );
+    }
 
     const report = await this.repository.findById(reportId);
     if (!report) throw new ApiError(404, "Report not found");
+
+    if (report.schoolId?.toString() !== authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to update report urgency for this school",
+      );
+    }
 
     const oldUrgency = report.urgency;
     report.urgency = urgency;
@@ -447,12 +515,12 @@ export class ReportService {
     // If urgency is high/urgent, escalate
     if ((urgency === "high" || urgency === "urgent") && !report.isEscalated) {
       report.isEscalated = true;
-      report.escalationReason = `Urgency escalated to ${urgency} by ${admin.name}`;
+      report.escalationReason = `Urgency escalated to ${urgency} by ${authAdmin.adminName}`;
     }
 
     report.activityLog.push({
       action: "urgency_updated",
-      adminId,
+      adminId: authAdmin.adminId,
       details: { oldUrgency, newUrgency: urgency },
       timestamp: new Date(),
     });
@@ -473,14 +541,41 @@ export class ReportService {
 
   async assignReport(
     reportId: string,
-    adminId: string,
+    authAdmin: AuthRequest,
     assignToAdminId: string,
   ) {
+    if (authAdmin.adminRole !== "school-admin") {
+      throw new ApiError(403, "You do not have permission to assign reports");
+    }
+
+    if (!authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to assign reports for this school",
+      );
+    }
+
     const report = await this.repository.findById(reportId);
     if (!report) throw new ApiError(404, "Report not found");
 
+    // Check if the report belongs to the same school as the authAdmin
+    if (report.schoolId?.toString() !== authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to assign reports for this school",
+      );
+    }
+
     const admin = await Admin.findById(assignToAdminId);
     if (!admin) throw new ApiError(404, "Admin not found");
+
+    // Check if the admin belongs to the same school as the authAdmin
+    if (admin.schoolId?.toString() !== authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "Report can only be assigned to an admin from the same school",
+      );
+    }
 
     const oldAssignee = report.assignedTo;
 
@@ -492,7 +587,7 @@ export class ReportService {
 
     report.activityLog.push({
       action: "report_assigned",
-      adminId,
+      adminId: authAdmin.adminId,
       details: {
         oldAssignee: oldAssignee?.name,
         newAssignee: admin.name,
@@ -515,7 +610,7 @@ export class ReportService {
       `Report ${report.referenceCode} has been assigned to you`,
       admin._id.toString(),
       report._id.toString(),
-      { assignedBy: adminId },
+      { assignedBy: authAdmin.adminId },
     );
 
     // Send email notification to assigned admin
@@ -536,77 +631,40 @@ export class ReportService {
     };
   }
 
-  async updateReport(
-    reportId: string,
-    data: UpdateReportRequest,
-    adminId: string,
-  ) {
+  async addNote(reportId: string, authAdmin: AuthRequest, note: string) {
+    // Check for adminId and adminSchoolId in authAdmin
+    if (!authAdmin.adminId || !authAdmin.adminSchoolId) {
+      throw new ApiError(400, "Invalid admin credentials");
+    }
+
     const report = await this.repository.findById(reportId);
     if (!report) throw new ApiError(404, "Report not found");
 
-    const updateData: any = {};
-    const changes: string[] = [];
-
-    if (data.title && data.title !== report.title) {
-      updateData.title = data.title;
-      changes.push("title");
-    }
-    if (data.description && data.description !== report.description) {
-      updateData.description = data.description;
-      changes.push("description");
-    }
-    if (data.category && data.category !== report.category) {
-      updateData.category = data.category;
-      changes.push("category");
-    }
-    if (data.incidentDate) {
-      updateData.incidentDate = new Date(data.incidentDate);
-      changes.push("incidentDate");
-    }
-    if (data.location !== undefined && data.location !== report.location) {
-      updateData.location = data.location;
-      changes.push("location");
-    }
-    if (
-      data.peopleInvolved !== undefined &&
-      data.peopleInvolved !== report.peopleInvolved
-    ) {
-      updateData.peopleInvolved = data.peopleInvolved;
-      changes.push("peopleInvolved");
+    // Check if report belongs to the same school as the authAdmin
+    if (report.schoolId?.toString() !== authAdmin.adminSchoolId) {
+      throw new ApiError(
+        403,
+        "You do not have permission to add notes to this report",
+      );
     }
 
-    if (changes.length === 0) {
-      throw new ApiError(400, "No changes to update");
+    // Check if the report is assigned to the authAdmin (if they are school-staff)
+    if (authAdmin.adminRole === "school-staff") {
+      if (report.assignedTo?.adminId?.toString() !== authAdmin.adminId) {
+        const message = report.assignedTo
+          ? "This report is assigned to another admin."
+          : "This report has not been assigned to you.";
+
+        throw new ApiError(
+          403,
+          `You do not have permission to add notes to this report. ${message}`,
+        );
+      }
     }
-
-    Object.assign(report, updateData);
-
-    report.activityLog.push({
-      action: "report_updated",
-      adminId,
-      details: { changes },
-      timestamp: new Date(),
-    });
-
-    await report.save();
-
-    return {
-      id: report._id.toString(),
-      updated: changes,
-      updatedAt: report.updatedAt,
-    };
-  }
-
-  async addNote(reportId: string, adminId: string, note: string) {
-    const admin = await Admin.findById(adminId);
-    if (!admin) throw new ApiError(404, "Admin not found");
-
-    const report = await this.repository.findById(reportId);
-    if (!report) throw new ApiError(404, "Report not found");
 
     report.internalNotes.push({
-      adminId: admin.id,
-      adminName: admin.name,
+      adminId: authAdmin.adminId,
+      adminName: authAdmin.adminName ?? "",
       note,
       timestamp: new Date(),
       isPrivate: true,
@@ -614,7 +672,7 @@ export class ReportService {
 
     report.activityLog.push({
       action: "note_added",
-      adminId,
+      adminId: authAdmin.adminId,
       details: { noteLength: note.length },
       timestamp: new Date(),
     });
@@ -622,11 +680,14 @@ export class ReportService {
     await report.save();
 
     // Notify assigned authority
-    if (report.assignedTo && report.assignedTo.adminId.toString() !== adminId) {
+    if (
+      report.assignedTo &&
+      report.assignedTo.adminId.toString() !== authAdmin.adminId
+    ) {
       await NotificationService.createNotification(
         "update",
         "New Note Added",
-        `${admin.name} added a note to ${report.referenceCode}`,
+        `${authAdmin.adminName} added a note to ${report.referenceCode}`,
         report.assignedTo.adminId.toString(),
         report._id.toString(),
         { note },
@@ -636,37 +697,67 @@ export class ReportService {
     return {
       id: report._id.toString(),
       note,
-      addedBy: admin.name,
+      addedBy: authAdmin.adminName,
       timestamp: new Date(),
     };
   }
 
-  async getAnalytics(_adminId: string) {
-    const totalReports = await Report.countDocuments();
+  async getAnalytics(authAdmin: AuthRequest) {
+    // Check for adminId and adminSchoolId in authAdmin
+    if (!authAdmin.adminId || !authAdmin.adminSchoolId) {
+      throw new ApiError(400, "Invalid admin credentials");
+    }
+
+    // Only allow school-admins and system-admins to access analytics
+    if (
+      authAdmin.adminRole !== "school-admin" &&
+      authAdmin.adminRole !== "system-admin"
+    ) {
+      throw new ApiError(403, "You do not have permission to access analytics");
+    }
+
+    const isSystemAdmin = authAdmin.adminRole === "system-admin";
+
+    // Build filter for school-admins
+    const schoolFilter = isSystemAdmin
+      ? {}
+      : { schoolId: authAdmin.adminSchoolId };
+
+    const totalReports = await Report.countDocuments(schoolFilter);
     const activeReports = await Report.countDocuments({
+      ...schoolFilter,
       status: { $in: ["new", "open", "investigating"] },
     });
+
     const resolvedReports = await Report.countDocuments({
+      ...schoolFilter,
       status: "resolved",
     });
+
     const urgentReports = await Report.countDocuments({
+      ...schoolFilter,
       urgency: { $in: ["high", "urgent"] },
     });
 
+    // Breakdown by category, status, urgency based on the school filter
     const categoryBreakdown = await Report.aggregate([
+      { $match: schoolFilter },
       { $group: { _id: "$category", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]);
 
     const statusBreakdown = await Report.aggregate([
+      { $match: schoolFilter },
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
 
     const urgencyBreakdown = await Report.aggregate([
+      { $match: schoolFilter },
       { $group: { _id: "$urgency", count: { $sum: 1 } } },
     ]);
 
     const monthlyTrends = await Report.aggregate([
+      { $match: schoolFilter },
       {
         $group: {
           _id: {
@@ -681,7 +772,13 @@ export class ReportService {
     ]);
 
     const avgResolutionTime = await Report.aggregate([
-      { $match: { status: "resolved", resolvedAt: { $exists: true } } },
+      {
+        $match: {
+          ...schoolFilter,
+          status: "resolved",
+          resolvedAt: { $exists: true },
+        },
+      },
       {
         $project: {
           resolutionHours: {
@@ -704,7 +801,7 @@ export class ReportService {
 
     // Assignment performance
     const assignmentStats = await Report.aggregate([
-      { $match: { "assignedTo.adminId": { $exists: true } } },
+      { $match: { ...schoolFilter, "assignedTo.adminId": { $exists: true } } },
       {
         $group: {
           _id: "$assignedTo.adminId",
@@ -754,8 +851,33 @@ export class ReportService {
     };
   }
 
-  async exportReports(filters: any, format: "csv" | "pdf", _adminId: string) {
-    const reports = await Report.find(filters)
+  async exportReports(
+    filters: any,
+    format: "csv" | "pdf",
+    authAdmin: AuthRequest,
+  ) {
+    // Check for adminId and adminSchoolId in authAdmin
+    if (!authAdmin.adminId || !authAdmin.adminSchoolId) {
+      throw new ApiError(400, "Invalid admin credentials");
+    }
+
+    // Only allow school-admins and system-admins to export reports
+    if (
+      authAdmin.adminRole !== "school-admin" &&
+      authAdmin.adminRole !== "system-admin"
+    ) {
+      throw new ApiError(403, "Access denied");
+    }
+
+    const schoolFilter =
+      authAdmin.adminRole === "school-admin"
+        ? { schoolId: authAdmin.adminSchoolId }
+        : {};
+
+    const reports = await Report.find({
+      ...filters,
+      ...schoolFilter,
+    })
       .populate("assignedTo.adminId", "name email")
       .sort({ submittedAt: -1 });
 
@@ -779,26 +901,27 @@ export class ReportService {
     }
   }
 
-  async bulkUpdateStatus(
-    reportIds: string[],
-    status: ReportStatus,
-    adminId: string,
-    note?: string,
-  ) {
-    const results = await Promise.allSettled(
-      reportIds.map((id) => this.updateStatus(id, status, adminId, note)),
-    );
+  async deleteReport(reportId: string, authAdmin: AuthRequest) {
+    // Check for adminId and adminSchoolId in authAdmin
+    if (!authAdmin.adminId || !authAdmin.adminSchoolId) {
+      throw new ApiError(400, "Invalid admin credentials");
+    }
 
-    return {
-      total: reportIds.length,
-      succeeded: results.filter((r) => r.status === "fulfilled").length,
-      failed: results.filter((r) => r.status === "rejected").length,
-    };
-  }
+    // Only allow school-admins and system-admins to delete reports
+    if (
+      authAdmin.adminRole !== "school-admin" &&
+      authAdmin.adminRole !== "system-admin"
+    ) {
+      throw new ApiError(403, "Access denied");
+    }
 
-  async deleteReport(reportId: string, adminId: string) {
     const report = await this.repository.findById(reportId);
     if (!report) throw new ApiError(404, "Report not found");
+
+    // Check if the report belongs to the same school as the authAdmin
+    if (report.schoolId?.toString() !== authAdmin.adminSchoolId) {
+      throw new ApiError(403, "Access denied");
+    }
 
     // Delete attachments from Cloudinary
     for (const attachment of report.attachments) {
@@ -812,7 +935,7 @@ export class ReportService {
     await report.deleteOne();
 
     // Log deletion
-    await this.repository.logReportDeletion(reportId, adminId);
+    await this.repository.logReportDeletion(reportId, authAdmin.adminId);
 
     return true;
   }

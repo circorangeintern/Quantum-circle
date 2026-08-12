@@ -116,17 +116,3 @@ export const addNoteSchema = z.object({
     note: z.string().min(1, "Note is required").max(1000, "Note too long"),
   }),
 });
-
-export const updateReportSchema = z.object({
-  params: z.object({
-    id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid report ID"),
-  }),
-  body: z.object({
-    title: z.string().max(200).optional(),
-    description: z.string().min(10).max(2000).optional(),
-    category: z.enum(REPORT_CATEGORIES).optional(),
-    incidentDate: z.string().datetime().optional(),
-    location: z.string().max(200).optional(),
-    peopleInvolved: z.string().max(200).optional(),
-  }),
-});

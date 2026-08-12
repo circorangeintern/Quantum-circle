@@ -9,8 +9,6 @@ import {
   UpdateUrgencyRequest,
   AssignReportRequest,
   AddNoteRequest,
-  UpdateReportRequest,
-  BulkUpdateStatusRequest,
 } from "./report.types";
 import { ApiError } from "../../core/errors/api.error";
 import { Report } from "../../core/models/report.model";
@@ -69,10 +67,7 @@ export class ReportController {
   async getDashboard(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const query = req.query as GetReportsQuery;
-      const result = await ReportService.getDashboardReports(
-        query,
-        req.adminId!,
-      );
+      const result = await ReportService.getDashboardReports(query, req);
       ApiResponse.success(res, result);
     } catch (error) {
       next(error);
@@ -85,7 +80,7 @@ export class ReportController {
       if (Array.isArray(id)) {
         throw new ApiError(400, "Invalid report ID");
       }
-      const result = await ReportService.getReportDetail(id, req.adminId!);
+      const result = await ReportService.getReportDetail(id, req);
       ApiResponse.success(res, result);
     } catch (error) {
       next(error);
@@ -99,12 +94,7 @@ export class ReportController {
         throw new ApiError(400, "Invalid report ID");
       }
       const { status, note } = req.body as UpdateStatusRequest;
-      const result = await ReportService.updateStatus(
-        id,
-        status,
-        req.adminId!,
-        note,
-      );
+      const result = await ReportService.updateStatus(id, status, req, note);
       ApiResponse.success(res, result, "Status updated successfully");
     } catch (error) {
       next(error);
@@ -118,11 +108,7 @@ export class ReportController {
         throw new ApiError(400, "Invalid report ID");
       }
       const { urgency } = req.body as UpdateUrgencyRequest;
-      const result = await ReportService.updateUrgency(
-        id,
-        urgency,
-        req.adminId!,
-      );
+      const result = await ReportService.updateUrgency(id, urgency, req);
       ApiResponse.success(res, result, "Urgency updated successfully");
     } catch (error) {
       next(error);
@@ -136,26 +122,8 @@ export class ReportController {
         throw new ApiError(400, "Invalid report ID");
       }
       const { adminId } = req.body as AssignReportRequest;
-      const result = await ReportService.assignReport(
-        id,
-        req.adminId!,
-        adminId,
-      );
+      const result = await ReportService.assignReport(id, req, adminId);
       ApiResponse.success(res, result, "Report assigned successfully");
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async updateReport(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      if (Array.isArray(id)) {
-        throw new ApiError(400, "Invalid report ID");
-      }
-      const data = req.body as UpdateReportRequest;
-      const result = await ReportService.updateReport(id, data, req.adminId!);
-      ApiResponse.success(res, result, "Report updated successfully");
     } catch (error) {
       next(error);
     }
@@ -168,7 +136,7 @@ export class ReportController {
         throw new ApiError(400, "Invalid report ID");
       }
       const { note } = req.body as AddNoteRequest;
-      const result = await ReportService.addNote(id, req.adminId!, note);
+      const result = await ReportService.addNote(id, req, note);
       ApiResponse.success(res, result, "Note added successfully");
     } catch (error) {
       next(error);
@@ -177,7 +145,7 @@ export class ReportController {
 
   async getAnalytics(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const result = await ReportService.getAnalytics(req.adminId!);
+      const result = await ReportService.getAnalytics(req);
       ApiResponse.success(res, result);
     } catch (error) {
       next(error);
@@ -194,7 +162,7 @@ export class ReportController {
       const result = await ReportService.exportReports(
         filters,
         format as "csv" | "pdf",
-        req.adminId!,
+        req,
       );
 
       if (format === "csv") {
@@ -223,22 +191,8 @@ export class ReportController {
       if (Array.isArray(id)) {
         throw new ApiError(400, "Invalid report ID");
       }
-      await ReportService.deleteReport(id, req.adminId!);
+      await ReportService.deleteReport(id, req);
       ApiResponse.success(res, null, "Report deleted successfully");
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async bulkUpdateStatus(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { reportIds, status } = req.body as BulkUpdateStatusRequest;
-      const result = await ReportService.bulkUpdateStatus(
-        reportIds,
-        status,
-        req.adminId!,
-      );
-      ApiResponse.success(res, result, "Bulk status update completed");
     } catch (error) {
       next(error);
     }

@@ -8,6 +8,7 @@ import { Admin } from "../../core/models/admin.model";
 import { hashPassword } from "../../core/utils/bcrypt.util";
 import { generateTokens } from "../../core/utils/jwt.util";
 import EmailService from "../../core/services/email.service";
+import { AuthRequest } from "../auth/auth.middleware";
 
 export interface SubmitRegistrationInput {
   schoolName: string;
@@ -123,10 +124,9 @@ export class RegistrationService {
     };
   }
 
-  async getRegistrations(query: GetRegistrationsQuery, adminId: string) {
+  async getRegistrations(query: GetRegistrationsQuery, authAdmin: AuthRequest) {
     // Verify admin has permission (system-admin only)
-    const admin = await Admin.findById(adminId);
-    if (!admin || admin.role !== "system-admin") {
+    if (!authAdmin.adminId || authAdmin.adminRole !== "system-admin") {
       throw new ApiError(403, "Only system-admins can view registrations");
     }
 
