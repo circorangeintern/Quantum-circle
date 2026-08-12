@@ -1,4 +1,5 @@
 import api from "./axios";
+import axios from "axios";
 
 export const getDashboardReports = async (filters) => {
   const response = await api.get("/reports/dashboard", { params: filters });
@@ -11,7 +12,10 @@ export const getReport = async (id) => {
 };
 
 export const createReport = async (formData) => {
-  const response = await api.post("/reports", formData);
+  const response = await axios.post(
+    `${process.env.NEXT_PUBLIC_API_URL}/reports`,
+    formData
+  );
   return response.data;
 };
 
