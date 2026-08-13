@@ -27,5 +27,6 @@ export const generateChartsToken = (schoolId: string, role: string): string => {
   return jwt.sign(payload, secretKey, {
     algorithm: "HS256",
     expiresIn: "1h",
+    audience: env.MONGODB_CHARTS_JWT_AUDIENCE,
   });
 };
