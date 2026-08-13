@@ -22,8 +22,8 @@ export function Sidebar() {
         <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
       <aside
-        className={`bg-navy text-white/75 p-5 flex flex-col w-[250px] shrink-0 fixed inset-y-0 left-0 z-40 overflow-y-auto transition-transform duration-200 lg:static lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`bg-navy text-white/75 p-5 flex flex-col w-[250px] shrink-0 fixed inset-y-0 left-0 z-40 overflow-y-auto transition-transform duration-200 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         <div className="flex items-center justify-between pb-5 px-2.5">

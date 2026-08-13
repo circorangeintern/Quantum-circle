@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { getAnalytics, exportReports } from "@/app/lib/reports";
+import api from "@/app/lib/axios";
 
 // ---------------------------------------------------------------------------
 // StatCard
@@ -85,13 +86,20 @@ export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [chartsToken, setChartsToken] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getAnalytics();
-      setAnalytics(data);
+      const [analyticsData, tokenRes] = await Promise.all([
+        getAnalytics(),
+        api.get("/auth/charts-token").catch(() => null),
+      ]);
+      setAnalytics(analyticsData);
+      if (tokenRes?.data?.data?.token) {
+        setChartsToken(tokenRes.data.data.token);
+      }
     } catch {
       setError("Failed to load analytics summary. Please try again.");
     } finally {
@@ -106,6 +114,11 @@ export default function AnalyticsPage() {
   const resolvedReports = overview?.resolvedReports ?? 0;
   const openReports = overview?.activeReports ?? 0;
   const pendingReports = Math.max(0, totalReports - resolvedReports - openReports);
+
+  const dashboardBaseUrl = `https://charts.mongodb.com/charts-quantumcircle-aclpdtc/public/dashboards/2a035087-0265-4067-9aea-dddfe4c7290f`;
+  const dashboardUrl = chartsToken
+    ? `${dashboardBaseUrl}?token=${chartsToken}`
+    : dashboardBaseUrl;
 
   return (
     <div className="flex flex-col gap-4">
@@ -142,10 +155,25 @@ export default function AnalyticsPage() {
               Live Dashboard
             </p>
             <iframe
-              src="https://charts.mongodb.com/charts-quantumcircle-aclpdtc/public/dashboards/2a035087-0265-4067-9aea-dddfe4c7290f"
+              src={dashboardUrl}
               title="Safespeak Analytics Dashboard"
               className="w-full border-0"
               style={{ height: "800px" }}
+              allowFullScreen
+            />
+          </div>
+
+          {/* PostHog shared dashboard embed */}
+          <div className="bg-white border border-border rounded-2xl overflow-hidden">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-text-faint px-5 pt-5 pb-3">
+              Platform Insights
+            </p>
+            <iframe
+              src="https://us.posthog.com/shared/g8KfpiCHaHfmclIXrX5Oxs03OVgXzA"
+              title="PostHog Platform Insights"
+              className="w-full border-0"
+              style={{ height: "800px" }}
+              loading="lazy"
               allowFullScreen
             />
           </div>

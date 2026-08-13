@@ -32,8 +32,7 @@ export function Sidebar() {
         className={`
           bg-navy text-white/75 p-5 flex flex-col w-[250px] shrink-0
           fixed inset-y-0 left-0 z-40 transition-transform duration-200
-          lg:static lg:translate-x-0
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         <div className="flex items-center justify-between pb-5 px-2.5">
