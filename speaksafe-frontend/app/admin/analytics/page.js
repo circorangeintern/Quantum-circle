@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
+import ChartsEmbedSDK from "@mongodb-js/charts-embed-dom";
 import { getAnalytics, exportReports } from "@/app/lib/reports";
 import api from "@/app/lib/axios";
 
@@ -80,26 +81,67 @@ function ExportButton({ format, label }) {
 }
 
 // ---------------------------------------------------------------------------
+// AtlasChartsDashboard — SDK authenticated embed
+// ---------------------------------------------------------------------------
+function AtlasChartsDashboard() {
+  const containerRef = useRef(null);
+  const [renderError, setRenderError] = useState(false);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const sdk = new ChartsEmbedSDK({
+      baseUrl: process.env.NEXT_PUBLIC_ATLAS_CHARTS_BASE_URL,
+    });
+
+    const dashboard = sdk.createDashboard({
+      dashboardId: process.env.NEXT_PUBLIC_ATLAS_CHARTS_EMBEDDING_ID,
+      height: "800px",
+      widthMode: "scale",
+      showAttribution: false,
+      getUserToken: async () => {
+        const res = await api.get("/auth/charts-token");
+        return res.data.data.token;
+      },
+    });
+
+    dashboard.render(containerRef.current).catch((err) => {
+      console.error("MongoDB Dashboard render error:", err);
+      setRenderError(true);
+    });
+
+    return () => {
+      if (containerRef.current) {
+        containerRef.current.innerHTML = "";
+      }
+    };
+  }, []);
+
+  if (renderError) {
+    return (
+      <div className="flex items-center justify-center h-[800px] text-sm text-red-500">
+        Failed to load dashboard. Please try again later.
+      </div>
+    );
+  }
+
+  return <div ref={containerRef} className="w-full" />;
+}
+
+// ---------------------------------------------------------------------------
 // AnalyticsPage
 // ---------------------------------------------------------------------------
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [chartsToken, setChartsToken] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [analyticsData, tokenRes] = await Promise.all([
-        getAnalytics(),
-        api.get("/auth/charts-token").catch(() => null),
-      ]);
-      setAnalytics(analyticsData);
-      if (tokenRes?.data?.data?.token) {
-        setChartsToken(tokenRes.data.data.token);
-      }
+      const data = await getAnalytics();
+      setAnalytics(data);
     } catch {
       setError("Failed to load analytics summary. Please try again.");
     } finally {
@@ -114,11 +156,6 @@ export default function AnalyticsPage() {
   const resolvedReports = overview?.resolvedReports ?? 0;
   const openReports = overview?.activeReports ?? 0;
   const pendingReports = Math.max(0, totalReports - resolvedReports - openReports);
-
-  const dashboardBaseUrl = `https://charts.mongodb.com/charts-quantumcircle-aclpdtc/public/dashboards/2a035087-0265-4067-9aea-dddfe4c7290f`;
-  const dashboardUrl = chartsToken
-    ? `${dashboardBaseUrl}?token=${chartsToken}`
-    : dashboardBaseUrl;
 
   return (
     <div className="flex flex-col gap-4">
@@ -149,33 +186,30 @@ export default function AnalyticsPage() {
             <StatCard label="Pending" value={pendingReports} />
           </div>
 
-          {/* MongoDB Charts public dashboard embed */}
+          {/* MongoDB Charts SDK authenticated embed */}
           <div className="bg-white border border-border rounded-2xl overflow-hidden">
             <p className="text-[11px] font-bold uppercase tracking-widest text-text-faint px-5 pt-5 pb-3">
               Live Dashboard
             </p>
-            <iframe
-              src={dashboardUrl}
-              title="Safespeak Analytics Dashboard"
-              className="w-full border-0"
-              style={{ height: "800px" }}
-              allowFullScreen
-            />
+            <AtlasChartsDashboard />
           </div>
 
-          {/* PostHog shared dashboard embed */}
-          <div className="bg-white border border-border rounded-2xl overflow-hidden">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-text-faint px-5 pt-5 pb-3">
+          {/* PostHog — link out */}
+          <div className="bg-white border border-border rounded-2xl p-5">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-text-faint mb-3">
               Platform Insights
             </p>
-            <iframe
-              src="https://us.posthog.com/shared/g8KfpiCHaHfmclIXrX5Oxs03OVgXzA"
-              title="PostHog Platform Insights"
-              className="w-full border-0"
-              style={{ height: "800px" }}
-              loading="lazy"
-              allowFullScreen
-            />
+            <p className="text-[13px] text-text-muted mb-4">
+              View real-time platform usage analytics powered by PostHog.
+            </p>
+            <a
+              href="https://us.posthog.com/shared/g8KfpiCHaHfmclIXrX5Oxs03OVgXzA"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-blue hover:bg-blue-dark text-white text-[13px] font-bold px-4 py-2.5 rounded-[10px] transition-colors"
+            >
+              Open PostHog Dashboard ↗
+            </a>
           </div>
         </>
       )}

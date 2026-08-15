@@ -1,6 +1,7 @@
 import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./providers/AuthProvider";
+import { PostHogProvider } from "./providers/PostHogProvider";
 
 export const metadata = {
   icons: {
@@ -32,7 +33,11 @@ export default function RootLayout({ children }) {
       className={`${spaceGrotesk.variable} ${inter.variable} ${plexMono.variable}`}
     >
       <body className="bg-paper text-text font-sans antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <PostHogProvider>
+            {children}
+          </PostHogProvider>
+        </AuthProvider>
       </body>
     </html>
   );

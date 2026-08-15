@@ -49,6 +49,7 @@ export function AuthProvider({ children }) {
     saveAuth({ tokens, admin, school: schoolData });
     setUser(admin);
     setSchool(schoolData ?? null);
+    setLoading(false);
   };
 
   /**
