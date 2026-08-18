@@ -90,25 +90,44 @@ function AtlasChartsDashboard() {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const sdk = new ChartsEmbedSDK({
-      baseUrl: process.env.NEXT_PUBLIC_ATLAS_CHARTS_BASE_URL,
-    });
+    api.get("/auth/charts-token")
+      .then((res) => {
+        const token = res.data.data.token;
 
-    const dashboard = sdk.createDashboard({
-      dashboardId: process.env.NEXT_PUBLIC_ATLAS_CHARTS_EMBEDDING_ID,
-      height: "800px",
-      widthMode: "scale",
-      showAttribution: false,
-      getUserToken: async () => {
-        const res = await api.get("/auth/charts-token");
-        return res.data.data.token;
-      },
-    });
+        // Decode JWT payload to extract school_id for filtering
+        const tokenSections = token.split(".");
+        if (tokenSections.length !== 3) throw new Error("Invalid JWT token string structure.");
+        const decodedPayload = JSON.parse(atob(tokenSections[1]));
+        const currentSchoolId = decodedPayload?.user?.school_id;
 
-    dashboard.render(containerRef.current).catch((err) => {
-      console.error("MongoDB Dashboard render error:", err);
-      setRenderError(true);
-    });
+        if (!currentSchoolId) {
+          console.warn("school_id property missing from decoded token.");
+        }
+
+        const sdk = new ChartsEmbedSDK({
+          baseUrl: process.env.NEXT_PUBLIC_ATLAS_CHARTS_BASE_URL,
+          getUserToken: () => token,
+        });
+
+        const dashboard = sdk.createDashboard({
+          dashboardId: process.env.NEXT_PUBLIC_ATLAS_CHARTS_EMBEDDING_ID,
+          height: "800px",
+          widthMode: "scale",
+          showAttribution: false,
+          ...(currentSchoolId && {
+            filter: { schoolId: currentSchoolId },
+          }),
+        });
+
+        dashboard.render(containerRef.current).catch((err) => {
+          console.error("MongoDB Dashboard render error:", err);
+          setRenderError(true);
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to fetch charts token:", err);
+        setRenderError(true);
+      });
 
     return () => {
       if (containerRef.current) {

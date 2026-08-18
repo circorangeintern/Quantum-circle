@@ -16,6 +16,7 @@ import SubmitButton from "./SubmitButton";
 import AnonymousToggle from "./AnonymousToggle";
 import PrivacyNotice from "./PrivacyNotice";
 import { createReport } from "@/app/lib/reports";
+import { capture } from "@/app/lib/posthog";
 
 const ReportForm = ({ schoolId }) => {
   const router = useRouter();
@@ -78,6 +79,13 @@ const ReportForm = ({ schoolId }) => {
     try {
       const result = await createReport(formData);
       const referenceCode = result?.data?.referenceCode;
+
+      capture("report_submitted", {
+        category: data.category,
+        is_anonymous: data.anonymous ?? true,
+        has_evidence: Array.isArray(data.evidence) && data.evidence.length > 0,
+        has_school: !!schoolId,
+      });
 
       reset();
       router.push(`/report/success?ref=${referenceCode}`);

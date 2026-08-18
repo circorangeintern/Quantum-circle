@@ -3,6 +3,7 @@
 import { useState } from "react";
 import StatusCard from "./StatusCard";
 import { checkStatus } from "../../lib/reports";
+import { capture } from "../../lib/posthog";
 
 // Pattern: four alphanumeric chars, hyphen, four alphanumeric chars (case-insensitive)
 const REFERENCE_CODE_REGEX = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/i;
@@ -34,10 +35,12 @@ export default function CheckStatusForm() {
     try {
       const data = await checkStatus(referenceCode.trim().toUpperCase());
       setReport(data);
+      capture("status_checked", { found: true });
     } catch (err) {
       const status = err?.response?.status;
       if (status === 404) {
         setNotFoundError("No report found for that reference code.");
+        capture("status_checked", { found: false });
       } else {
         setNotFoundError(
           err?.response?.data?.message ||
